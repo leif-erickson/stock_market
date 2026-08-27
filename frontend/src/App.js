@@ -117,7 +117,7 @@ function TradingDashboard() {
             <p key={p.symbol}>{p.symbol} × {Number(p.quantity).toFixed(3)} @ {money(p.avg_price)}</p>
           ))}
         </article>
-      </div>
+      </section>
 
       <section>
         <h2>Setups</h2>
