@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradingcore"
+version = "0.1.0"
+description = "Broker-agnostic, event-driven trading research core (backtest + paper by default; live is hard-gated off)."
+requires-python = ">=3.12"
+readme = "README.md"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tradingcore*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
