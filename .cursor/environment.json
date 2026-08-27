@@ -1,0 +1,17 @@
+{
+  "name": "Stock Market Portfolio Tracker",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "backend",
+      "command": "cd backend && npm start"
+    },
+    {
+      "name": "frontend",
+      "command": "cd frontend && BROWSER=none PORT=3000 npm start"
+    }
+  ],
+  "ports": [3000, 5000]
+}
