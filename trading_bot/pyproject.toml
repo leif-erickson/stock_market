@@ -12,6 +12,8 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+alpaca = ["alpaca-py>=0.40"]
+yahoo = ["yfinance>=0.2", "pandas>=2.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]

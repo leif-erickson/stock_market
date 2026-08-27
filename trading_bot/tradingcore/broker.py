@@ -194,12 +194,11 @@ class _GuardedLiveBroker:
         raise LiveTradingNotEnabled(f"{self.venue} adapter is a stub.")
 
 
-class AlpacaBroker(_GuardedLiveBroker):
-    """Recommended first *real* venue: Alpaca has an official API and a genuine
-    paper-trading endpoint. Implement using the official ``alpaca-py`` SDK; start
-    against the paper base URL before anything else."""
-
-    venue = "alpaca"
+# NOTE: The real Alpaca **paper** adapter lives in
+# ``tradingcore.adapters.alpaca_broker.AlpacaBroker`` (it implements this Broker
+# protocol against Alpaca's official API). Paper trading is allowed; live trading
+# through it is gated behind an explicit acknowledgement. Robinhood remains a
+# guarded stub because it has no official API.
 
 
 class RobinhoodBroker(_GuardedLiveBroker):

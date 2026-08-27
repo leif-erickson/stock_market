@@ -34,6 +34,25 @@ pytest                       # run the test suite
 python examples/demo_backtest.py   # end-to-end backtest on synthetic data
 ```
 
+### Real data & Alpaca paper trading
+
+```bash
+# Keyless real intraday backtest via Yahoo Finance (no API key required):
+pip install -e ".[yahoo]"
+python examples/run_yahoo_backtest.py AAPL 5m 1mo
+
+# Alpaca (official API). Backtest historical bars, or smoke-test the PAPER account:
+pip install -e ".[alpaca]"
+export ALPACA_API_KEY=...  ALPACA_SECRET_KEY=...   # use PAPER keys
+python examples/run_alpaca_backtest.py AAPL        # reads data only, no orders
+python examples/alpaca_paper_smoke.py              # read-only account check
+python examples/alpaca_paper_smoke.py --place-order AAPL 1   # 1 tiny PAPER order
+```
+
+Data/broker adapters live in `tradingcore/adapters/` and lazily import their SDKs,
+so the core stays dependency-free. `AlpacaBroker` defaults to **paper**; live
+trading is refused unless explicitly acknowledged.
+
 ## Package layout
 
 | Module | Responsibility |
