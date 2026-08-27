@@ -49,16 +49,25 @@ app.get('/portfolio', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM portfolio');
     const enhancedRows = await Promise.all(rows.map(async (item) => {
-      let currentPrice = 0;
-      if (item.type === 'stock') {
-        const quote = await alpaca.getLatestQuote(item.symbol);
-        currentPrice = quote.AskPrice; // Or use BidPrice/AskPrice average
-      } else if (item.type === 'crypto') {
-        const ticker = await exchange.fetchTicker(`${item.symbol}/USDT`);
-        currentPrice = ticker.last;
+      // A failing/unauthenticated market-data provider should not take down the
+      // whole endpoint; return the holding with null pricing instead.
+      let currentPrice = null;
+      try {
+        if (item.type === 'stock') {
+          const quote = await alpaca.getLatestQuote(item.symbol);
+          currentPrice = quote.AskPrice; // Or use BidPrice/AskPrice average
+        } else if (item.type === 'crypto') {
+          const ticker = await exchange.fetchTicker(`${item.symbol}/USDT`);
+          currentPrice = ticker.last;
+        }
+      } catch (priceError) {
+        console.warn(`Price lookup failed for ${item.symbol} (${item.type}): ${priceError.message}`);
       }
-      const currentValue = item.quantity * currentPrice;
-      const profitLoss = currentValue - (item.quantity * item.original_cost);
+      // pg returns DECIMAL columns as strings; coerce before arithmetic.
+      const quantity = Number(item.quantity);
+      const originalCost = Number(item.original_cost);
+      const currentValue = currentPrice == null ? null : quantity * currentPrice;
+      const profitLoss = currentPrice == null ? null : currentValue - (quantity * originalCost);
       return { ...item, current_price: currentPrice, current_value: currentValue, profit_loss: profitLoss };
     }));
     res.json(enhancedRows);
