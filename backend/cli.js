@@ -11,6 +11,7 @@ const { createPgStore, createMemoryStore } = require('./lib/store');
 const { createBarsClient } = require('./lib/bars');
 const { runReplay, scanLatestSession } = require('./lib/pipeline');
 const { isLiveEnabled } = require('./lib/robinhood');
+const { runDailyCli } = require('./lib/daily');
 
 dotenv.config();
 
@@ -48,25 +49,31 @@ async function main() {
   const config = loadConfig();
   const { store, pool } = makeStore();
   if (pool) await ensureSchema(pool);
-  const barsClient = makeBars();
 
-  if (cmd === 'replay') {
-    const days = Number(process.argv[3] || 20);
-    const result = await runReplay({ store, barsClient, config, days, persist: true });
-    printReplay(result);
-  } else if (cmd === 'scan' || cmd === 'today') {
-    const result = await scanLatestSession({ store, barsClient, config, persist: false });
-    printScan(result);
-  } else if (cmd === 'rank') {
-    const days = Number(process.argv[3] || 20);
-    const result = await runReplay({ store, barsClient, config, days, persist: true });
-    printRank(result.rankings);
-  } else {
-    console.error('Usage: node cli.js [replay|scan|rank] [days]');
-    process.exitCode = 1;
+  try {
+    if (cmd === 'daily') {
+      await runDailyCli({ store, config });
+    } else if (cmd === 'replay') {
+      const days = Number(process.argv[3] || 20);
+      const barsClient = makeBars();
+      const result = await runReplay({ store, barsClient, config, days, persist: true });
+      printReplay(result);
+    } else if (cmd === 'scan' || cmd === 'today') {
+      const barsClient = makeBars();
+      const result = await scanLatestSession({ store, barsClient, config, persist: false });
+      printScan(result);
+    } else if (cmd === 'rank') {
+      const days = Number(process.argv[3] || 20);
+      const barsClient = makeBars();
+      const result = await runReplay({ store, barsClient, config, days, persist: true });
+      printRank(result.rankings);
+    } else {
+      console.error('Usage: node cli.js [replay|scan|rank|daily] [days]');
+      process.exitCode = 1;
+    }
+  } finally {
+    if (pool) await pool.end();
   }
-
-  if (pool) await pool.end();
 }
 
 function printReplay(result) {
@@ -106,7 +113,7 @@ function printRank(rankings) {
 
 if (require.main === module) {
   main().catch((err) => {
-    console.error(err);
+    console.error(err.message || err);
     process.exit(1);
   });
 }
