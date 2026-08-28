@@ -154,6 +154,9 @@ describe('AMT / SMC / VSA school mapping', () => {
     }
     assert.equal(NON_ENTRY_NAMES.includes('gann'), true);
     assert.equal(NON_ENTRY_NAMES.includes('tori'), true);
+    assert.equal(NON_ENTRY_NAMES.includes('brooks'), true);
+    assert.equal(snap.brooks.status, 'later_slot');
+    assert.equal(snap.ict_smc.status, 'later_es_nq');
   });
 
   it('detectors never mention SMC/VSA tags as conditions', () => {

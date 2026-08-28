@@ -90,7 +90,7 @@ describe('research events / ideas / candles', () => {
     assert.ok(ctx.nextToExplore.length >= 1);
     assert.equal(ctx.nextToExplore.every((i) => i.liveEligible === false), true);
     assert.match(ctx.howToContribute.board, /\/research\/board/);
-    assert.match(ctx.howToContribute.doNot, /SMC\/VSA/);
+    assert.match(ctx.howToContribute.doNot, /school_books/);
     assert.ok(ctx.frozenWindows.length >= 2);
     assert.equal(ctx.assetBooks.stocks.venue, 'alpaca_paper');
     assert.ok(ctx.openIdeas.length >= 1);
@@ -109,7 +109,7 @@ describe('research events / ideas / candles', () => {
       book: 'gann_swing',
       timeframe: 'swing',
       instrumentFamily: 'stocks',
-      nextAction: 'Do not implement a detector this pass.',
+      nextAction: 'specify',
       sourceUrl: 'https://drive.google.com/drive/folders/1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9',
     });
     const row = await store.insertIdea(idea);
@@ -117,14 +117,14 @@ describe('research events / ideas / candles', () => {
     assert.equal(row.book, 'gann_swing');
     assert.equal(row.timeframe, 'swing');
     assert.equal(row.instrument_family, 'stocks');
-    assert.match(row.next_action, /detector/);
+    assert.equal(row.next_action, 'specify');
     assert.ok(row.source_url.includes('1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9'));
     const patched = await store.updateIdea(row.id, {
       status: 'exploring',
-      nextAction: 'Still paper. No live.',
+      nextAction: 'paper_forward',
     });
     assert.equal(patched.status, 'exploring');
-    assert.equal(patched.next_action, 'Still paper. No live.');
+    assert.equal(patched.next_action, 'paper_forward');
     assert.equal(patched.book, 'gann_swing');
   });
 });

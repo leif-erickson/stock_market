@@ -4,15 +4,18 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { rankNextToExplore, normalizeIdea, LEDGER_FIELDS } = require('../lib/research');
+const { rankNextToExplore, normalizeIdea, LEDGER_FIELDS, NEXT_ACTIONS, SCHOOL_BOOKS } = require('../lib/research');
 const {
   MIN_OOS_TRADES,
+  DECLARED_ORB_OOS_N,
+  SQN_MIN_N,
   TIA_DRIVE_FOLDER,
   GANN_PDF_ID,
   RESEARCH_BOOKS,
   CATALOG_IDEAS,
   boardSnapshot,
   mergeExploreQueue,
+  sqnSnapshot,
 } = require('../lib/researchBoard');
 const { SETUPS, PROMOTION_GATES, loadConfig, edgeSnapshot } = require('../lib/config');
 const { createMemoryStore } = require('../lib/store');
@@ -48,9 +51,12 @@ describe('research board / next-to-explore ledger', () => {
     assert.equal(board.honesty.minOosTrades, 8);
     assert.equal(board.honesty.minOosTrades, PROMOTION_GATES.minOosTrades);
     assert.equal(board.honesty.onlySetupWithOosPath, 'orb_breakout');
+    assert.equal(board.honesty.orbBreakoutOosN, 2);
+    assert.equal(board.honesty.sqn.computed, false);
     assert.match(board.honesty.note, /unmeasured/);
     const orb = board.honesty.setups.find((s) => s.id === 'orb_breakout');
     assert.equal(orb.status, 'unmeasured');
+    assert.equal(orb.oosTrades, 2);
   });
 
   it('treats Gann and Tori as books, not SETUPS facets', () => {
@@ -58,17 +64,25 @@ describe('research board / next-to-explore ledger', () => {
     const tori = RESEARCH_BOOKS.find((b) => b.id === 'tori_trendlines');
     const overnight = RESEARCH_BOOKS.find((b) => b.id === 'overnight_swing');
     assert.equal(gann.school, 'gann');
+    assert.equal(gann.timeframe, 'D/W');
     assert.equal(gann.status, 'exploring');
+    assert.equal(gann.nextAction, 'specify');
     assert.equal(tori.school, 'tori');
-    assert.equal(overnight.school, 'gann+tori');
+    assert.equal(tori.timeframe, '4h');
+    assert.equal(overnight, undefined);
+    assert.equal([...SCHOOL_BOOKS].join(','), 'amt,brooks,tori,gann,ict_smc,orderflow');
     for (const setup of SETUPS) {
       assert.equal(setup.facets.includes('gann'), false);
       assert.equal(setup.facets.includes('tori'), false);
+      assert.equal(setup.facets.includes('brooks'), false);
       assert.ok(setup.facets.length <= 5);
     }
     const orderflow = RESEARCH_BOOKS.find((b) => b.id === 'orderflow');
     assert.equal(orderflow.status, 'parked');
-    assert.match(orderflow.nextAction, /NOT_IMPLEMENTED/);
+    assert.equal(orderflow.nextAction, 'specify');
+    assert.match(orderflow.note, /NOT_IMPLEMENTED/);
+    const stacked = RESEARCH_BOOKS.filter((b) => String(b.school || '').includes('+'));
+    assert.equal(stacked.length, 0);
   });
 
   it('merges catalog ideas so an empty store still has a next-to-explore queue', () => {
@@ -111,15 +125,41 @@ describe('research board / next-to-explore ledger', () => {
     assert.equal(edge.maxFacets, 5);
     assert.ok(edge.nextToExplore[0].status === 'exploring');
     assert.equal(MIN_OOS_TRADES, 8);
+    assert.equal(edge.experimentSlot.schoolBook, 'amt');
+    assert.equal(edge.experimentSlot.nextAction, 'run_wf');
+    assert.ok(edge.nextActions.includes('promote_queue'));
+  });
+
+  it('does not compute SQN on orb_breakout n=2 and keeps next_action as an enum', () => {
+    assert.equal(DECLARED_ORB_OOS_N, 2);
+    assert.equal(SQN_MIN_N, 30);
+    const sqn = sqnSnapshot(2);
+    assert.equal(sqn.computed, false);
+    assert.match(sqn.reason, /n<30/);
+    assert.ok(NEXT_ACTIONS.has('specify'));
+    assert.ok(NEXT_ACTIONS.has('run_wf'));
+    assert.ok(NEXT_ACTIONS.has('promote_queue'));
+    assert.equal(normalizeIdea({ title: 'x', hypothesis: 'y', nextAction: 'run_wf' }).nextAction, 'run_wf');
+    const board = boardSnapshot({ setups: SETUPS });
+    assert.equal(board.honesty.sqn.computed, false);
+    assert.equal(board.experimentSlot.schoolBook, 'amt');
+    assert.equal(CATALOG_IDEAS.some((i) => i.school === 'brooks'), true);
   });
 
   it('points at TIA Drive ids only and does not embed course text', () => {
     const md = fs.readFileSync(path.join(__dirname, '../../docs/RESEARCH.md'), 'utf8');
     assert.match(md, /1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9/);
     assert.match(md, /1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T/);
-    assert.match(md, /Do not copy TIA or Tori course text/);
+    assert.match(md, /Do not copy TIA, Tori, Brooks/);
     assert.match(md, /unmeasured/);
     assert.match(md, /orb_breakout/);
+    assert.match(md, /OOS \*\*n=2\*\*/);
+    assert.match(md, /august-andersen\/trading-hypothesis-workflow/);
+    assert.match(md, /charlesbx\/quant-research-lab-template/);
+    assert.match(md, /ssrn.com\/abstract=2326253/);
+    assert.match(md, /Never stack/);
+    assert.match(md, /TradePad 0–14/);
+    assert.doesNotMatch(md, /SQN = .*sqrt/i);
     assert.match(TIA_DRIVE_FOLDER, /1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9/);
     assert.equal(GANN_PDF_ID, '1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T');
     assert.doesNotMatch(md, /square of nine lesson/i);

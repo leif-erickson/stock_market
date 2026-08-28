@@ -29,7 +29,7 @@ Every setup declares **2–5 named facets** (`maxFacets: 5` in `backend/lib/conf
 
 High-beta: `SOFI, PLTR, TSLA, ARKK, NVDA, QQQ`. Slow large-cap: `MSFT, AMZN, BRK.B`.
 
-Only `orb_breakout` has a walk-forward OOS path so far. If OOS n&lt;8 (`minOosTrades`), status is **unmeasured**, not most profitable.
+Only `orb_breakout` has a walk-forward OOS path so far (**n=2**). Unmeasured. Do not compute SQN. If OOS n&lt;8 (`minOosTrades`), status is **unmeasured**, not most profitable.
 
 ## Candle model
 
@@ -51,13 +51,17 @@ Unmapped facets (`rsi`, `pin_or_engulf`, `extension_from_high`) stay unlabeled. 
 
 **Orderflow** (footprint / delta / DOM / CVD) stays parked. `OrderflowSession` throws `NOT_IMPLEMENTED`. Do not invent tick or L2 from 5m OHLCV. NinjaTrader stays out. Rithmic stays a stub.
 
-**Gann** is unparked as its own **swing/cycle book**. It is not parked forever and it is not a 6th 5m ORB facet. Source: TIA Investor / TIA Crypto — Drive pointers in [RESEARCH.md](RESEARCH.md). Geometry/time squares can come later; no detector this pass.
+**Gann** is unparked as its own **D/W TIA swing/cycle book**. It is not parked forever and it is not a 6th 5m ORB facet. Source: TIA Investor / TIA Crypto — Drive pointers in [RESEARCH.md](RESEARCH.md). Geometry/time squares can come later; no detector this pass.
 
-**Tori trendlines** (public: action line + safety line, bounce vs 2/3-touch break, typically 4h swing, trail on opposing trendline) is a separate swing book. Not stacked on 5m ORB.
+**Tori trendlines** (public: action line + safety line, bounce vs 2/3-touch break, typically 4h swing, trail on opposing trendline) is a separate **4h swing book**. Not stacked on 5m ORB and not stacked with Gann in the same experiment slot.
 
-**Overnight swing book** is the Gann+Tori track — the path that un-parks overnight stock swing as its own book.
+**Brooks** 5m Always-In / H2 is a possible later day-trade slot, not this week’s experiment.
+
+**One `school_book` per experiment slot:** `amt` | `brooks` | `tori` | `gann` | `ict_smc` | `orderflow`. Never stack. Overnight stock swing is the path: pick Gann **or** Tori, not both.
 
 Time-analysis masterclasses overlay *when*, not extra entry facets.
+
+ICT/SMC and orderflow are later ES/NQ + L2 books, not the default US-cash book.
 
 ## Validation
 
@@ -84,7 +88,7 @@ Doubling-horizon (`GOAL_DOUBLE_DAYS`) is a **measurement**, never a promotion ga
 
 Same economic event, different books. Do not stack QQQ + NQ + BTC as extra confirms on one stock trigger.
 
-Overnight / higher-TF swing (Gann + Tori) is a **fifth research book on stocks**, not a fifth asset class and not extra 5m facets. See [RESEARCH.md](RESEARCH.md).
+Overnight / higher-TF swing is **Gann (D/W) or Tori (4h)** — one school_book per slot, not extra 5m facets. See [RESEARCH.md](RESEARCH.md).
 
 ## Weekly maintenance
 
@@ -94,7 +98,7 @@ Overnight / higher-TF swing (Gann + Tori) is a **fifth research book on stocks**
 2. This sample’s OOS vs regime mix.
 3. Frozen-window P&amp;L share.
 4. Kill / park / promote per family (`live-eligible` only if gates clear **and** not `anomaly_dependent`).
-5. One experiment slot: newest `strategy_ideas` in `inbox` / `exploring`.
+5. One experiment slot: one `school_book` (`amt` this week). Newest `strategy_ideas` in `inbox` / `exploring` that does not stack schools.
 6. Cross-asset glance (QQQ vs NQ vs BTC).
 
 Weekday `paper:daily` is the tape. Weekly is where the edge is **maintained**. Next-to-explore ranking lives on `GET /research/board` and does not promote live-eligible.

@@ -148,6 +148,9 @@ function edgeSnapshot(config) {
     researchBoard: 'GET /research/board — books matrix and next-to-explore ranking. Never live-eligible from this.',
     honesty: board.honesty,
     nextToExplore: board.nextToExplore,
+    experimentSlot: board.experimentSlot,
+    schoolBooks: board.schoolBooks,
+    nextActions: board.nextActions,
     liveEligibleFromBoard: false,
   };
 }

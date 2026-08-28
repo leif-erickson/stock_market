@@ -1,11 +1,14 @@
 'use strict';
 
-const { rankNextToExplore, publicIdea } = require('./research');
+const { rankNextToExplore, publicIdea, NEXT_ACTIONS, SCHOOL_BOOKS } = require('./research');
 
 const MIN_OOS_TRADES = 8;
+const DECLARED_ORB_OOS_N = 2;
+const SQN_MIN_N = 30;
+const SQN_CAP_N = 100;
 
 /**
- * Paper research ledger. Pointers only — no TIA/Tori course text.
+ * Paper research ledger. Pointers only — no course dumps.
  * Live stays off. This board never marks live-eligible.
  */
 
@@ -13,8 +16,50 @@ const TIA_DRIVE_FOLDER = 'https://drive.google.com/drive/folders/1nyq_yaY-vvcZiS
 const GANN_PDF_ID = '1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T';
 const GANN_PDF_URL = `https://drive.google.com/file/d/${GANN_PDF_ID}`;
 
+const BLUEPRINTS = {
+  walkForward: {
+    names: 'Tomasini–Jaekle / Pardo',
+    grade: 'stitched_oos',
+    params: '2-5 with a plateau',
+    links: [
+      'https://www.harriman-house.com/tradingsystems',
+      'https://www.wiley.com/en-us/The+Evaluation+and+Optimization+of+Trading+Strategies%2C+2nd+Edition-p-9780470128015',
+    ],
+  },
+  pboCscv: {
+    status: 'optional_later',
+    note: 'Bailey–López de Prado PBO/CSCV is not a 6th facet.',
+    url: 'https://ssrn.com/abstract=2326253',
+  },
+  measurement: {
+    names: 'Van Tharp R-multiple / expectancy / SQN',
+    url: 'https://www.vantharp.com/',
+    sqnMinN: SQN_MIN_N,
+    sqnCapN: SQN_CAP_N,
+    sizeLiveFromSqn: false,
+  },
+  amt: {
+    names: 'Dalton / Steidlmayer',
+    role: '5m instrument book (IB/value/participation), not extra confirms',
+    links: [
+      'https://www.wiley.com/en-us/Mind+Over+Markets%3A+Power+Trading+with+Market+Generated+Information%2C+Updated+Edition-p-9781118531730',
+      'https://www.cmegroup.com/education/courses/market-profile.html',
+    ],
+  },
+  brooks: {
+    url: 'https://www.brookspriceaction.com/',
+    note: '5m Always-In / H2 is a later day-trade slot, not this week.',
+  },
+  stateMachine: ['specify', 'code', 'run_is', 'run_wf', 'paper_forward', 'iterate', 'kill', 'promote_queue'],
+  templates: [
+    'https://github.com/august-andersen/trading-hypothesis-workflow',
+    'https://github.com/charlesbx/quant-research-lab-template',
+  ],
+  discard: 'confluence scores (e.g. TradePad 0–14)',
+};
+
 const SOURCES = {
-  copyright: 'Pointers by id/link only. Do not copy TIA or Tori course text into this repo.',
+  copyright: 'Pointers by id/link only. Do not copy TIA, Tori, Brooks, or other course text into this repo.',
   tia: {
     names: 'TIA Investor / TIA Crypto (Jason & Michael Pizzino)',
     driveFolder: TIA_DRIVE_FOLDER,
@@ -35,6 +80,7 @@ const SOURCES = {
     driveId: null,
     url: null,
   },
+  blueprints: BLUEPRINTS,
 };
 
 /** school × instrument family × timeframe × venue × status × next action + news overlay */
@@ -42,131 +88,137 @@ const RESEARCH_BOOKS = [
   {
     id: 'stock_auction_5m',
     school: 'amt',
+    schoolBook: 'amt',
     kind: 'mechanical',
     instrumentFamily: 'high_beta',
     timeframe: '5m',
     venue: 'alpaca_paper',
     status: 'paper',
     newsOverlay: 'skip_nfp_cpi_fomc',
-    nextAction: 'Keep measuring walk-forward OOS. News skip is already paper. Do not add facets.',
-    note: 'Named 5m day-trade edge. OR=IB, VWAP=value, rvol=participation. Facet budget 2–5.',
+    nextAction: 'run_wf',
+    note: 'Named 5m day-trade edge. OR=IB, VWAP=value, rvol=participation. This week’s experiment slot.',
   },
   {
     id: 'gann_swing',
     school: 'gann',
+    schoolBook: 'gann',
     kind: 'pattern',
     instrumentFamily: 'stocks',
-    timeframe: 'swing',
+    timeframe: 'D/W',
     venue: 'alpaca_paper',
     status: 'exploring',
     newsOverlay: 'may_run_event_mornings',
-    nextAction: 'Book is unparked. Do not implement a detector this pass. Geometry/time squares later.',
-    note: 'Own swing/cycle book. Not a 6th confirm on the 5m ORB auction.',
+    nextAction: 'specify',
+    note: 'D/W TIA swing/cycle book. Unparked. Not a 6th 5m ORB facet. No detector this pass.',
     sourceUrl: TIA_DRIVE_FOLDER,
   },
   {
     id: 'tori_trendlines',
     school: 'tori',
+    schoolBook: 'tori',
     kind: 'pattern',
     instrumentFamily: 'stocks',
     timeframe: '4h',
     venue: 'alpaca_paper',
     status: 'exploring',
     newsOverlay: 'may_run_event_mornings',
-    nextAction: 'Named swing-book method. Do not stack on 5m ORB. No detector this pass.',
-    note: 'Separate swing book. Path to un-park overnight stock swing.',
+    nextAction: 'specify',
+    note: '4h swing book. Not stacked on 5m ORB or on Gann.',
   },
   {
-    id: 'overnight_swing',
-    school: 'gann+tori',
+    id: 'brooks_5m',
+    school: 'brooks',
+    schoolBook: 'brooks',
     kind: 'pattern',
     instrumentFamily: 'stocks',
-    timeframe: 'swing',
+    timeframe: '5m',
     venue: 'alpaca_paper',
-    status: 'exploring',
-    newsOverlay: 'may_run_event_mornings',
-    nextAction: 'Treat Gann + Tori as this track. Still paper. No live overnight book.',
-    note: 'Overnight swing book = Gann+Tori track. Was parked; this is the un-park path.',
+    status: 'inbox',
+    newsOverlay: 'skip_nfp_cpi_fomc',
+    nextAction: 'specify',
+    note: 'Always-In / H2 possible later day-trade slot. Not this week’s experiment.',
+    sourceUrl: BLUEPRINTS.brooks.url,
+  },
+  {
+    id: 'ict_smc',
+    school: 'ict_smc',
+    schoolBook: 'ict_smc',
+    kind: 'overlay',
+    instrumentFamily: 'es_nq',
+    timeframe: '5m',
+    venue: 'later_es_nq',
+    status: 'inbox',
+    newsOverlay: 'n/a',
+    nextAction: 'specify',
+    note: 'Later ES/NQ + L2. Not the default US-cash book. Optional researchTags only on the cash book.',
+  },
+  {
+    id: 'orderflow',
+    school: 'orderflow',
+    schoolBook: 'orderflow',
+    kind: 'parked',
+    instrumentFamily: 'es_nq',
+    timeframe: 'tick',
+    venue: 'rithmic_stub',
+    status: 'parked',
+    newsOverlay: 'n/a',
+    nextAction: 'specify',
+    note: 'NOT_IMPLEMENTED until L2/Rithmic. Later ES/NQ. Do not invent CVD from 5m OHLCV.',
   },
   {
     id: 'tia_wyckoff',
     school: 'wyckoff',
+    schoolBook: null,
     kind: 'pattern',
     instrumentFamily: 'stocks',
     timeframe: 'swing',
     venue: 'alpaca_paper',
     status: 'inbox',
     newsOverlay: 'single_name_earnings_skip',
-    nextAction: 'Later TIA course/book. Pointer only.',
+    nextAction: 'specify',
+    note: 'Later TIA course/book. Not an experiment slot.',
     sourceUrl: TIA_DRIVE_FOLDER,
   },
   {
     id: 'tia_elliott',
     school: 'elliott',
+    schoolBook: null,
     kind: 'pattern',
     instrumentFamily: 'stocks',
     timeframe: 'swing',
     venue: 'alpaca_paper',
     status: 'inbox',
     newsOverlay: 'single_name_earnings_skip',
-    nextAction: 'Later TIA course/book. Pointer only.',
+    nextAction: 'specify',
+    note: 'Later TIA course/book. Not an experiment slot.',
     sourceUrl: TIA_DRIVE_FOLDER,
   },
   {
     id: 'tia_time_overlay',
     school: 'gann',
+    schoolBook: null,
     kind: 'overlay',
     instrumentFamily: 'stocks',
     timeframe: 'overlay',
     venue: 'alpaca_paper',
     status: 'inbox',
     newsOverlay: 'when_overlay',
-    nextAction: 'Time analysis overlays when, not extra entry facets.',
+    nextAction: 'specify',
+    note: 'Time analysis overlays when, not extra entry facets.',
     sourceUrl: TIA_DRIVE_FOLDER,
-  },
-  {
-    id: 'smc_tags',
-    school: 'smc',
-    kind: 'overlay',
-    instrumentFamily: 'stocks',
-    timeframe: '5m',
-    venue: 'alpaca_paper',
-    status: 'optional_tags',
-    newsOverlay: 'skip_nfp_cpi_fomc',
-    nextAction: 'Keep as optional researchTags. Not confirms. Instrument-specific later book if ever.',
-  },
-  {
-    id: 'vsa_tags',
-    school: 'vsa',
-    kind: 'overlay',
-    instrumentFamily: 'stocks',
-    timeframe: '5m',
-    venue: 'alpaca_paper',
-    status: 'optional_tags',
-    newsOverlay: 'skip_nfp_cpi_fomc',
-    nextAction: 'Keep as optional researchTags. Not confirms.',
-  },
-  {
-    id: 'orderflow',
-    school: 'orderflow',
-    kind: 'parked',
-    instrumentFamily: 'futures_then_stocks',
-    timeframe: 'tick',
-    venue: 'rithmic_stub',
-    status: 'parked',
-    newsOverlay: 'n/a',
-    nextAction: 'NOT_IMPLEMENTED until L2/Rithmic. Do not invent CVD from 5m OHLCV.',
   },
   {
     id: 'tia_process',
     school: 'process',
+    schoolBook: null,
     kind: 'process',
     instrumentFamily: 'all',
     timeframe: 'n/a',
     venue: 'journal',
     status: 'inbox',
     newsOverlay: 'n/a',
-    nextAction: 'Mirror TIA categories: R-multiples as journal unit; 7-step + trade log. Not live size.',
+    nextAction: 'paper_forward',
+    note: 'R-multiples as journal unit. Do not size live from SQN.',
   },
 ];
 
@@ -181,70 +233,57 @@ const NEWS_OVERLAY = {
 const CATALOG_IDEAS = [
   {
     id: 'catalog:gann-swing',
-    title: 'Gann swing/cycle as its own book',
-    hypothesis: 'Unpark Gann as a higher-TF swing/cycle book. Not a 6th confirm on the 5m ORB auction. Geometry/time squares later; no detector this pass.',
+    title: 'Gann D/W swing as its own book',
+    hypothesis: 'Unpark Gann as a D/W TIA swing/cycle book. Not a 6th confirm on the 5m ORB auction. No detector this pass.',
     status: 'exploring',
     school: 'gann',
     book: 'gann_swing',
-    timeframe: 'swing',
+    timeframe: 'D/W',
     instrumentFamily: 'stocks',
-    nextAction: 'Keep as book ledger only. Do not add facets to orb_breakout.',
+    nextAction: 'specify',
     sourceUrl: TIA_DRIVE_FOLDER,
     source: 'catalog',
     exploreRank: 1,
   },
   {
     id: 'catalog:tori-trendlines',
-    title: 'Tori trendlines overnight swing method',
-    hypothesis: 'Public method: action line + safety line; bounce vs 2/3-touch break; typically 4h; trail on opposing trendline. Separate swing book, not stacked on 5m ORB.',
+    title: 'Tori 4h trendlines swing book',
+    hypothesis: 'Public method: action line + safety line; bounce vs 2/3-touch break; typically 4h; trail on opposing trendline. Separate swing book. Never stack with AMT or Gann in one slot.',
     status: 'exploring',
     school: 'tori',
     book: 'tori_trendlines',
     timeframe: '4h',
     instrumentFamily: 'stocks',
-    nextAction: 'Name the swing-book method. Do not implement a detector this pass.',
+    nextAction: 'specify',
     sourceUrl: null,
     source: 'catalog',
     exploreRank: 2,
   },
   {
-    id: 'catalog:overnight-swing',
-    title: 'Overnight swing book is the Gann+Tori track',
-    hypothesis: 'Overnight stock swing was parked. Un-park it as its own book via Gann + Tori, not by stacking on 5m ORB.',
-    status: 'exploring',
-    school: 'gann+tori',
-    book: 'overnight_swing',
-    timeframe: 'swing',
-    instrumentFamily: 'stocks',
-    nextAction: 'Keep paper. No live overnight book.',
+    id: 'catalog:orb-oos-honesty',
+    title: 'orb_breakout OOS n=2 — unmeasured, no SQN',
+    hypothesis: 'Do not invent profitability. Do not compute SQN. minOosTrades is 8. Walk-forward stitched OOS and not anomaly_dependent still required.',
+    status: 'paper',
+    school: 'amt',
+    book: 'stock_auction_5m',
+    timeframe: '5m',
+    instrumentFamily: 'high_beta',
+    nextAction: 'run_wf',
     source: 'catalog',
     exploreRank: 3,
   },
   {
     id: 'catalog:auction-news-skip',
     title: 'Skip 5m auction on NFP/CPI/FOMC mornings',
-    hypothesis: 'Opening-range auction fails more on NFP/CPI/FOMC mornings. Paper this skip. Not a sixth facet. Gann/Tori higher-TF books may still run those days.',
+    hypothesis: 'Opening-range auction skip on NFP/CPI/FOMC mornings. Not a sixth facet. Gann/Tori higher-TF books may still run those days.',
     status: 'paper',
     school: 'amt',
     book: 'stock_auction_5m',
     timeframe: '5m',
     instrumentFamily: 'high_beta',
-    nextAction: 'Keep paper measuring. Do not treat skip as an entry confirm.',
+    nextAction: 'paper_forward',
     source: 'catalog',
     exploreRank: 4,
-  },
-  {
-    id: 'catalog:orb-oos-honesty',
-    title: 'Only orb_breakout has an OOS path so far',
-    hypothesis: 'Do not invent profitability. minOosTrades is 8. If OOS n<8, status is unmeasured, not most profitable. Walk-forward OOS and not anomaly_dependent are still required.',
-    status: 'paper',
-    school: 'amt',
-    book: 'stock_auction_5m',
-    timeframe: '5m',
-    instrumentFamily: 'high_beta',
-    nextAction: 'Measure OOS n honestly. This board never promotes live-eligible.',
-    source: 'catalog',
-    exploreRank: 5,
   },
   {
     id: 'catalog:avgo-earnings-skip',
@@ -255,21 +294,35 @@ const CATALOG_IDEAS = [
     book: 'stock_auction_5m',
     timeframe: '5m',
     instrumentFamily: 'single_name',
-    nextAction: 'Paper as a skip overlay on the auction book.',
+    nextAction: 'paper_forward',
     symbols: ['AVGO'],
+    source: 'catalog',
+    exploreRank: 5,
+  },
+  {
+    id: 'catalog:brooks-later',
+    title: 'Brooks 5m Always-In / H2 later slot',
+    hypothesis: 'Possible later day-trade slot. Not this week’s experiment. Do not stack on AMT.',
+    status: 'inbox',
+    school: 'brooks',
+    book: 'brooks_5m',
+    timeframe: '5m',
+    instrumentFamily: 'stocks',
+    nextAction: 'specify',
+    sourceUrl: BLUEPRINTS.brooks.url,
     source: 'catalog',
     exploreRank: 6,
   },
   {
     id: 'catalog:tia-wyckoff',
     title: 'TIA Wyckoff Volume Accelerator as a later book',
-    hypothesis: 'Advanced school as its own course/book when explored. Not stacked on 5m ORB facets.',
+    hypothesis: 'Advanced school as its own course/book when explored. Not an experiment slot and not stacked on 5m ORB.',
     status: 'inbox',
     school: 'wyckoff',
     book: 'tia_wyckoff',
     timeframe: 'swing',
     instrumentFamily: 'stocks',
-    nextAction: 'Pointer only. Open the TIA Drive Wyckoff folder when ready.',
+    nextAction: 'specify',
     sourceUrl: TIA_DRIVE_FOLDER,
     source: 'catalog',
     exploreRank: 7,
@@ -277,13 +330,13 @@ const CATALOG_IDEAS = [
   {
     id: 'catalog:tia-elliott',
     title: 'TIA Elliott as a later book',
-    hypothesis: 'Advanced school as its own course/book when explored. Not stacked on 5m ORB facets.',
+    hypothesis: 'Advanced school as its own course/book when explored. Not an experiment slot and not stacked on 5m ORB.',
     status: 'inbox',
     school: 'elliott',
     book: 'tia_elliott',
     timeframe: 'swing',
     instrumentFamily: 'stocks',
-    nextAction: 'Pointer only. Open the TIA Drive Elliott folder when ready.',
+    nextAction: 'specify',
     sourceUrl: TIA_DRIVE_FOLDER,
     source: 'catalog',
     exploreRank: 8,
@@ -297,7 +350,7 @@ const CATALOG_IDEAS = [
     book: 'tia_time_overlay',
     timeframe: 'overlay',
     instrumentFamily: 'stocks',
-    nextAction: 'Keep as overlay note. Do not add a 6th facet.',
+    nextAction: 'specify',
     sourceUrl: TIA_DRIVE_FOLDER,
     source: 'catalog',
     exploreRank: 9,
@@ -305,15 +358,28 @@ const CATALOG_IDEAS = [
   {
     id: 'catalog:r-multiples',
     title: 'R-multiples as journal unit',
-    hypothesis: 'Mirror TIA Premium Traders Guide category: R is the journal unit, not live size yet. Mechanical vs pattern is a book label.',
+    hypothesis: 'Van Tharp R / expectancy / SQN are measurement. Paper only. Do not size live from SQN. Do not compute SQN while n<30.',
     status: 'inbox',
     school: 'process',
     book: 'tia_process',
     timeframe: 'n/a',
     instrumentFamily: 'all',
-    nextAction: 'Use R in journal notes. Do not size live from it.',
+    nextAction: 'paper_forward',
     source: 'catalog',
     exploreRank: 10,
+  },
+  {
+    id: 'catalog:ict-smc-later',
+    title: 'ICT/SMC later ES/NQ book',
+    hypothesis: 'Not the default US-cash book. Later ES/NQ + L2. Optional researchTags on cash stay non-confirms.',
+    status: 'inbox',
+    school: 'ict_smc',
+    book: 'ict_smc',
+    timeframe: '5m',
+    instrumentFamily: 'es_nq',
+    nextAction: 'specify',
+    source: 'catalog',
+    exploreRank: 11,
   },
 ];
 
@@ -344,10 +410,38 @@ function mergeExploreQueue(storedIdeas = []) {
   return rankNextToExplore([...stored, ...extra]);
 }
 
+function orbOosN(setups = []) {
+  const orb = (setups || []).find((s) => s.id === 'orb_breakout');
+  const trades = Number(orb?.metrics?.trades ?? orb?.metrics?.oosTrades);
+  if (Number.isFinite(trades) && trades > 0) return trades;
+  return DECLARED_ORB_OOS_N;
+}
+
+function sqnSnapshot(n) {
+  if (!(n >= SQN_MIN_N)) {
+    return {
+      computed: false,
+      n,
+      minN: SQN_MIN_N,
+      capN: SQN_CAP_N,
+      reason: 'n<30 — do not compute SQN',
+    };
+  }
+  return {
+    computed: false,
+    n: Math.min(n, SQN_CAP_N),
+    minN: SQN_MIN_N,
+    capN: SQN_CAP_N,
+    reason: 'SQN grader not implemented this pass; paper measurement only; do not size live',
+  };
+}
+
 function oosHonesty(setups = []) {
   const minOosTrades = MIN_OOS_TRADES;
+  const declaredN = orbOosN(setups);
   const rows = (setups || []).map((s) => {
-    const trades = Number(s.metrics?.trades ?? s.metrics?.oosTrades ?? 0);
+    const fromMetrics = Number(s.metrics?.trades ?? s.metrics?.oosTrades ?? 0);
+    const trades = s.id === 'orb_breakout' ? declaredN : fromMetrics;
     return {
       id: s.id,
       oosTrades: trades,
@@ -356,17 +450,30 @@ function oosHonesty(setups = []) {
   });
   return {
     onlySetupWithOosPath: 'orb_breakout',
+    orbBreakoutOosN: declaredN,
     minOosTrades,
-    note: 'Do not invent profitability. If OOS n<8, status is unmeasured not most profitable. Walk-forward OOS and not anomaly_dependent are still required.',
+    sqn: sqnSnapshot(declaredN),
+    note: 'orb_breakout OOS n=2. Do not invent profitability. Do not compute SQN. If OOS n<8, status is unmeasured not most profitable. Promotion still minOosTrades 8.',
     setups: rows,
   };
 }
 
 function boardSnapshot({ ideas = [], setups = [] } = {}) {
+  const honesty = oosHonesty(setups);
   return {
     liveEligibleFromBoard: false,
     execution: 'paper',
-    honesty: oosHonesty(setups),
+    honesty,
+    experimentSlot: {
+      schoolBook: 'amt',
+      book: 'stock_auction_5m',
+      setupId: 'orb_breakout',
+      nextAction: 'run_wf',
+      note: 'One school_book per slot. Never stack. Brooks is not this week.',
+    },
+    schoolBooks: [...SCHOOL_BOOKS],
+    nextActions: [...NEXT_ACTIONS],
+    labOs: BLUEPRINTS,
     books: RESEARCH_BOOKS.map((b) => ({
       ...b,
       newsNote: NEWS_OVERLAY[b.newsOverlay] || NEWS_OVERLAY['n/a'],
@@ -383,14 +490,19 @@ function boardSnapshot({ ideas = [], setups = [] } = {}) {
 
 module.exports = {
   MIN_OOS_TRADES,
+  DECLARED_ORB_OOS_N,
+  SQN_MIN_N,
+  SQN_CAP_N,
   TIA_DRIVE_FOLDER,
   GANN_PDF_ID,
   GANN_PDF_URL,
+  BLUEPRINTS,
   SOURCES,
   RESEARCH_BOOKS,
   NEWS_OVERLAY,
   CATALOG_IDEAS,
   mergeExploreQueue,
   oosHonesty,
+  sqnSnapshot,
   boardSnapshot,
 };

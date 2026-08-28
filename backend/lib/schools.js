@@ -42,6 +42,15 @@ const NON_ENTRY_NAMES = [
   'wyckoff',
   'elliott',
   'time_square',
+  'brooks',
+  'always_in',
+  'h2',
+  'ict',
+  'ict_smc',
+  'pbo',
+  'cscv',
+  'sqn',
+  'confluence',
   'cvd',
   'delta',
   'footprint',
@@ -61,13 +70,30 @@ const SWING_BOOKS = {
     status: 'swing_book',
     gateEntries: false,
     book: 'gann_swing',
-    note: 'Unparked as its own swing/cycle book (TIA Gann Swing Accelerator). Not a 6th 5m ORB facet. No detector this pass.',
+    timeframe: 'D/W',
+    note: 'Unparked D/W TIA swing/cycle book. Not a 6th 5m ORB facet. No detector this pass. Never stack with another school_book in one slot.',
   },
   tori: {
     status: 'swing_book',
     gateEntries: false,
     book: 'tori_trendlines',
-    note: 'Public trendline method (action + safety line). Separate swing book. Not stacked on 5m ORB. Overnight swing = Gann+Tori track.',
+    timeframe: '4h',
+    note: '4h trendline swing book (action + safety line). Not stacked on 5m ORB or on Gann.',
+  },
+};
+
+const LATER_BOOKS = {
+  brooks: {
+    status: 'later_slot',
+    gateEntries: false,
+    book: 'brooks_5m',
+    note: '5m Always-In / H2 possible later day-trade slot. Not this week’s experiment.',
+  },
+  ict_smc: {
+    status: 'later_es_nq',
+    gateEntries: false,
+    book: 'ict_smc',
+    note: 'Later ES/NQ + L2. Not the default US-cash book.',
   },
 };
 
@@ -180,6 +206,8 @@ function schoolSnapshot(setups) {
     orderflow: { ...PARKED.orderflow },
     gann: { ...SWING_BOOKS.gann },
     tori: { ...SWING_BOOKS.tori },
+    brooks: { ...LATER_BOOKS.brooks },
+    ict_smc: { ...LATER_BOOKS.ict_smc },
   };
 }
 
@@ -191,6 +219,7 @@ module.exports = {
   NON_ENTRY_NAMES,
   PARKED,
   SWING_BOOKS,
+  LATER_BOOKS,
   amtMapForFacets,
   assertAmtIsNotAFacet,
   researchTagsFrom,

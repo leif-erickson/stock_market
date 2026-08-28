@@ -66,7 +66,7 @@ async function getAgentContext(store, config) {
       edge: 'GET /research/edge — named edge, facet budget, frozen Oct–Nov 2025 windows, asset books, next-to-explore',
       board: 'GET /research/board — books matrix + next-to-explore ranking. exploring/paper first, then inbox. Never live-eligible from this.',
       weekly: edge.weekly,
-      doNot: 'Do not place live Robinhood orders from this API. Do not scrape paywalled analysis into full-text dumps; store URL + a short note. Do not add facets because last week was green. Do not promote SMC/VSA journal tags or orderflow stubs into entry confirms. Do not stack Gann or Tori on the 5m ORB auction.',
+      doNot: 'Do not place live Robinhood orders from this API. Do not scrape paywalled analysis into full-text dumps; store URL + a short note. Do not add facets because last week was green. Do not promote SMC/VSA journal tags or orderflow stubs into entry confirms. Do not stack school_books. Do not compute SQN while OOS n<30. Do not use confluence scores.',
     },
   };
 }

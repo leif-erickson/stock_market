@@ -5,6 +5,10 @@ const IDEA_SOURCES = new Set(['manual', 'ui', 'slack', 'grokbot', 'catalog']);
 const IDEA_STATUSES = new Set(['inbox', 'exploring', 'paper', 'rejected', 'parked']);
 const EXPLORE_STATUSES = ['exploring', 'paper', 'inbox'];
 const EXPLORE_RANK = { exploring: 0, paper: 1, inbox: 2 };
+const NEXT_ACTIONS = new Set([
+  'specify', 'code', 'run_is', 'run_wf', 'paper_forward', 'iterate', 'kill', 'promote_queue',
+]);
+const SCHOOL_BOOKS = new Set(['amt', 'brooks', 'tori', 'gann', 'ict_smc', 'orderflow']);
 
 const LEDGER_FIELDS = ['school', 'book', 'timeframe', 'instrumentFamily', 'nextAction', 'sourceUrl'];
 
@@ -22,6 +26,22 @@ function optionalText(value) {
   if (value == null) return null;
   const text = String(value).trim();
   return text ? text : null;
+}
+
+function normalizeNextAction(value) {
+  const raw = optionalText(value);
+  if (!raw) return null;
+  const key = raw.toLowerCase().replace(/[\s-]+/g, '_');
+  if (NEXT_ACTIONS.has(key)) return key;
+  return raw;
+}
+
+function asSchoolBook(value) {
+  const raw = optionalText(value);
+  if (!raw) return null;
+  const key = raw.toLowerCase().replace(/[\s-]+/g, '_');
+  const aliased = (key === 'smc' || key === 'ict') ? 'ict_smc' : key;
+  return SCHOOL_BOOKS.has(aliased) ? aliased : null;
 }
 
 function normalizeEvent(input = {}) {
@@ -55,7 +75,7 @@ function normalizeIdea(input = {}) {
     book: optionalText(input.book),
     timeframe: optionalText(input.timeframe),
     instrumentFamily: optionalText(input.instrumentFamily || input.instrument_family),
-    nextAction: optionalText(input.nextAction || input.next_action),
+    nextAction: normalizeNextAction(input.nextAction || input.next_action),
     sourceUrl: optionalText(input.sourceUrl || input.source_url),
   };
 }
@@ -75,7 +95,7 @@ function toIdeaRow(idea, extras = {}) {
     book: idea.book || null,
     timeframe: idea.timeframe || null,
     instrument_family: idea.instrumentFamily || idea.instrument_family || null,
-    next_action: idea.nextAction || idea.next_action || null,
+    next_action: normalizeNextAction(idea.nextAction || idea.next_action),
     source_url: idea.sourceUrl || idea.source_url || null,
     ...extras,
   };
@@ -98,10 +118,11 @@ function publicIdea(row = {}) {
     setupId: row.setupId || row.setup_id || null,
     notes: row.notes || '',
     school: row.school || null,
+    schoolBook: asSchoolBook(row.schoolBook || row.school_book || row.school),
     book: row.book || null,
     timeframe: row.timeframe || null,
     instrumentFamily: row.instrumentFamily || row.instrument_family || null,
-    nextAction: row.nextAction || row.next_action || null,
+    nextAction: normalizeNextAction(row.nextAction || row.next_action),
     sourceUrl: row.sourceUrl || row.source_url || null,
     createdAt: row.createdAt || row.created_at || null,
     updatedAt: row.updatedAt || row.updated_at || null,
@@ -122,7 +143,7 @@ function ideaLedgerPatch(patch = {}) {
     out.instrument_family = optionalText(patch.instrumentFamily || patch.instrument_family);
   }
   if (patch.nextAction !== undefined || patch.next_action !== undefined) {
-    out.next_action = optionalText(patch.nextAction || patch.next_action);
+    out.next_action = normalizeNextAction(patch.nextAction || patch.next_action);
   }
   if (patch.sourceUrl !== undefined || patch.source_url !== undefined) {
     out.source_url = optionalText(patch.sourceUrl || patch.source_url);
@@ -174,10 +195,14 @@ module.exports = {
   IDEA_SOURCES,
   IDEA_STATUSES,
   EXPLORE_STATUSES,
+  NEXT_ACTIONS,
+  SCHOOL_BOOKS,
   LEDGER_FIELDS,
   asTextArray,
   normalizeEvent,
   normalizeIdea,
+  normalizeNextAction,
+  asSchoolBook,
   toIdeaRow,
   publicIdea,
   ideaLedgerPatch,
