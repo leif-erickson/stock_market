@@ -11,6 +11,7 @@ const {
   ASSET_BOOKS,
 } = require('../lib/config');
 const { FACET_FIELDS, MAX_DETECTOR_FACETS } = require('../lib/signals');
+const { NON_ENTRY_NAMES } = require('../lib/schools');
 
 describe('facet budget / instrument families / books', () => {
   it('declares 2–5 named facets on every setup', () => {
@@ -23,6 +24,16 @@ describe('facet budget / instrument families / books', () => {
     }
     for (const [id, fields] of Object.entries(FACET_FIELDS)) {
       assert.ok(fields.length <= MAX_FACETS, `${id} reads ${fields.length} fields`);
+    }
+    const config = loadConfig();
+    const orb = config.setups.find((s) => s.id === 'orb_breakout');
+    assert.deepEqual(orb.facets, ['or_break', 'above_vwap', 'rvol']);
+    assert.equal(orb.facets.length, 3);
+    assert.equal(config.schools.amt.bySetup.orb_breakout.or_break, 'initial_balance');
+    for (const setup of config.setups) {
+      for (const name of NON_ENTRY_NAMES) {
+        assert.equal(setup.facets.includes(name), false, `${setup.id} must not facet ${name}`);
+      }
     }
   });
 

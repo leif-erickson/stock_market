@@ -101,6 +101,8 @@ function ResearchDesk({ api }) {
         <strong>Named edge.</strong> {edge?.namedEdge || 'Stock auction: opening range + VWAP + rvol; flatten by close.'}
         <div className="hint">
           Max {edge?.maxFacets ?? 5} facets.
+          AMT labels on the named edge: initial_balance (OR) · value (VWAP) · participation (rvol).
+          SMC/VSA are journal tags only; orderflow parked; Gann inbox-only.
           Frozen holdouts: {(edge?.frozenWindows || []).map((w) => `${w.start}–${w.end} (${w.regime})`).join('; ') || 'Oct–Nov 2025'}.
           One experiment slot from ideas below — do not add facets because last week was green.
         </div>

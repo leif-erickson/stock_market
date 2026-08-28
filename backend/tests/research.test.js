@@ -79,6 +79,11 @@ describe('research events / ideas / candles', () => {
     assert.equal(ctx.goals.isPromotionGate, false);
     assert.ok(ctx.namedEdge);
     assert.equal(ctx.maxFacets, 5);
+    assert.equal(ctx.schools.amt.gateEntries, false);
+    assert.equal(ctx.schools.smc.gateEntries, false);
+    assert.equal(ctx.schools.orderflow.status, 'parked');
+    assert.equal(ctx.schools.gann.status, 'inbox_only');
+    assert.match(ctx.howToContribute.doNot, /SMC\/VSA/);
     assert.ok(ctx.frozenWindows.length >= 2);
     assert.equal(ctx.assetBooks.stocks.venue, 'alpaca_paper');
     assert.ok(ctx.openIdeas.length >= 1);

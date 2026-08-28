@@ -94,7 +94,7 @@ Weekdays after the US cash close, [`.github/workflows/paper-daily.yml`](.github/
 
 1. **Bars.** 5-minute regular-hours (09:30–16:00 ET) OHLCV from Alpaca when keys work; `scan` / `replay` otherwise use synthetic sessions. Replay also upserts bars into `candle_bars`. `paper:daily` never uses synthetic bars.
 2. **Signals.** Long-only cash fills. High-beta names run auction setups; slow large-cap runs VWAP reclaim. See [docs/STRATEGY.md](docs/STRATEGY.md).
-   - `orb_breakout` / `orb_retest` — 15-minute opening range, VWAP, relative volume
+   - `orb_breakout` / `orb_retest` — 15-minute opening range, VWAP, relative volume (AMT: initial_balance / value / participation)
    - `vwap_rsi_reversion` — RSI oversold, reclaim of session VWAP on volume (slow large-cap)
    - `bar_reversal` — pin or engulf at VWAP
    - `impulse_hold` — continuation in an `expansion` regime only
@@ -142,6 +142,7 @@ Covers indicator math, candle/session geometry, signal detection (including regi
 
 ```
 backend/lib/config.js      universe, facets, named edge, asset books, promotion gates
+backend/lib/schools.js     AMT labels on existing facets; optional SMC/VSA journal tags; orderflow/Gann parked
 backend/lib/candle.js      Candle / Session geometry (OrderflowSession stub)
 backend/lib/regime.js      frozen Oct–Nov 2025 windows, expansion/reset/quiet
 backend/lib/validate.js    holdout metrics, anomaly_dependent

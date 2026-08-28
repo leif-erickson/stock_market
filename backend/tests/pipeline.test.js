@@ -30,6 +30,12 @@ describe('paper pipeline', () => {
     assert.equal(trades[0].asset_class, 'stocks');
     assert.ok(result.rankings.length >= 1);
     assert.equal(result.liveEnabled, false);
+    const withAmt = trades.find((t) => t.features?.amt);
+    assert.ok(withAmt, 'expected journaled features to carry AMT labels');
+    assert.equal(withAmt.features.amt.rvol, 'participation');
+    assert.ok(Array.isArray(withAmt.features.facets));
+    assert.ok(withAmt.features.facets.length <= 5);
+    assert.equal(withAmt.features.facets.includes('fvg'), false);
     for (const row of result.rankings) {
       if (row.liveEligible) {
         assert.equal(row.status, 'live-eligible');

@@ -3,6 +3,7 @@
 const { Session, Candle } = require('./candle');
 const { regimeForDate } = require('./regime');
 const { SETUPS } = require('./config');
+const { amtMapForFacets, researchTagsFrom } = require('./schools');
 
 function isRth(bar, config) {
   return bar.minuteOfDay >= config.rthStartMinute && bar.minuteOfDay < config.rthEndMinute;
@@ -170,17 +171,25 @@ const FACET_FIELDS = {
   roundtrip_fade: ['vwap', 'rvol', 'regime', 'swingHigh'],
 };
 
-function featuresFrom(bar, setupId) {
+function featuresFrom(bar, setupId, { annotated, index } = {}) {
+  const setup = SETUPS.find((s) => s.id === setupId);
+  const facets = [...(setup?.facets || [])];
   const out = {
     close: bar.close,
     sessionDate: bar.sessionDate,
     minuteOfDay: bar.minuteOfDay,
     regime: bar.regime || 'quiet',
     assetClass: bar.assetClass || 'stocks',
+    facets,
+    amt: amtMapForFacets(facets),
   };
   for (const key of FACET_FIELDS[setupId] || ['rvol', 'vwap']) {
     out[key] = bar[key];
   }
+  const tags = Array.isArray(annotated) && Number.isInteger(index)
+    ? researchTagsFrom(annotated, index)
+    : [];
+  if (tags.length) out.researchTags = tags;
   return out;
 }
 
@@ -208,7 +217,7 @@ function evaluateSetups(annotatedBars, setupIds = Object.keys(DETECTORS)) {
         paperPrice: bar.close,
         stop: hit.stop,
         target: hit.target,
-        features: featuresFrom(bar, hit.setupId),
+        features: featuresFrom(bar, hit.setupId, { annotated: annotatedBars, index: i }),
         reason: hit.reason,
         assetClass: bar.assetClass || 'stocks',
         family: (SETUPS.find((s) => s.id === hit.setupId) || {}).family || null,
@@ -236,4 +245,5 @@ module.exports = {
   DETECTORS,
   FACET_FIELDS,
   MAX_DETECTOR_FACETS: 5,
+  featuresFrom,
 };

@@ -6,7 +6,7 @@ Paper-first US equity research. Alpaca paper is the stock book. Live Robinhood s
 
 **Stock auction:** 15-minute opening range + VWAP as fair value + relative volume on high-beta names; flatten by close.
 
-That is three facets. It is not an AI narrative, not Gann, and not a 12-factor score.
+That is three facets. Auction Market Theory **is** those three facets (initial balance / value / participation). It is not an AI narrative, not Gann, and not a 12-factor score.
 
 **What would kill it:** OOS P&amp;L concentrated in one expansion window (Sep–Oct 2025 Nasdaq melt-up) that fails in the Nov 2025 holdout; or consistency collapsing when the regime is `reset`.
 
@@ -14,7 +14,7 @@ That is three facets. It is not an AI narrative, not Gann, and not a 12-factor s
 
 ## Facet budget
 
-Every setup declares **2–5 named facets** (`maxFacets: 5` in `backend/lib/config.js`). Detectors that exceed the budget fail a unit test. Journal `features` store those names plus price/time. Event-days (CPI / FOMC / mega-cap earnings) are an optional **skip**, not a sixth confirm.
+Every setup declares **2–5 named facets** (`maxFacets: 5` in `backend/lib/config.js`). Detectors that exceed the budget fail a unit test. Journal `features` store those names plus price/time, plus AMT labels (`features.amt`) on the same facets. Event-days (CPI / FOMC / mega-cap earnings) are an optional **skip**, not a sixth confirm. SMC/VSA `researchTags` are optional notes, not confirms.
 
 | Setup | Family | Facets | Where it may fire |
 |---|---|---|---|
@@ -30,6 +30,24 @@ High-beta: `SOFI, PLTR, TSLA, ARKK, NVDA, QQQ`. Slow large-cap: `MSFT, AMZN, BRK
 ## Candle model
 
 `Candle` and `Session` in `backend/lib/candle.js` own geometry (range, wicks, pin, engulf) and session series (OR, VWAP, RSI, swings). Detectors stay functions. `OrderflowSession` throws `NOT_IMPLEMENTED` — no fake CVD from candle color. Gann stays inbox-only.
+
+## Industrial school mapping (paper labels)
+
+AMT is a **label map** on the named edge, not a 4th/5th/6th confirm. `backend/lib/schools.js` writes those labels onto journal/signal `features`. Detectors still fire only on the same 2–5 named facets.
+
+| Existing facet | AMT label | Meaning |
+|---|---|---|
+| `or_break`, `prior_or_break`, `or_or_structure_break` | `initial_balance` | 15-minute opening range ≈ initial balance |
+| `above_vwap`, `mid_vwap_touch`, `at_vwap`, `vwap_reclaim`, `vwap_loss_or_engulf` | `value` | session VWAP ≈ auction value |
+| `rvol` | `participation` | relative volume |
+
+Unmapped facets (`rsi`, `pin_or_engulf`, `extension_from_high`) stay unlabeled. AMT role names are **not** entry facets.
+
+**SMC** (`liquidity_sweep`, `fvg`, `order_block`, `bos`) and **VSA** (`effort_vs_result`, `no_demand`) may appear as optional `features.researchTags` for later ranking. They are coarse 5m-OHLCV notes, not a full SMC/VSA engine, and they **do not gate entries**. A signal still fires when those tags are absent. Do not promote them into confirms because a week was green.
+
+**Orderflow** (footprint / delta / DOM / CVD) stays parked. `OrderflowSession` throws `NOT_IMPLEMENTED`. Do not invent tick or L2 from 5m OHLCV. NinjaTrader stays out. Rithmic stays a stub.
+
+**Gann** stays inbox-only (`strategy_ideas` status `inbox` / `exploring`). Not a facet and not a journal tag this pass.
 
 ## Validation
 
@@ -72,7 +90,8 @@ Weekday `paper:daily` is the tape. Weekly is where the edge is **maintained**.
 ## Parked
 
 - Overnight stock swing book
-- Real CVD / tick / Lee-Ready
-- Gann math
+- Real CVD / tick / Lee-Ready (orderflow parked; no fake CVD from candle color)
+- Gann math (inbox-only)
+- Promoting SMC/VSA `researchTags` into entry facets
 - Live options or futures from this repo
 - Flipping `LIVE_SWITCH`

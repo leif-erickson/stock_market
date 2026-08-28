@@ -42,6 +42,7 @@ async function getAgentContext(store, config) {
     assetBooks: edge.assetBooks,
     frozenWindows: edge.frozenWindows,
     maxFacets: edge.maxFacets,
+    schools: edge.schools,
     execution: {
       venue: 'alpaca_paper',
       liveRobinhood: false,
@@ -60,7 +61,7 @@ async function getAgentContext(store, config) {
       candles: 'POST /research/candles/ingest  — persist latest Alpaca/synthetic 5m bars',
       edge: 'GET /research/edge — named edge, facet budget, frozen Oct–Nov 2025 windows, asset books',
       weekly: edge.weekly,
-      doNot: 'Do not place live Robinhood orders from this API. Do not scrape paywalled analysis into full-text dumps; store URL + a short note. Do not add facets because last week was green.',
+      doNot: 'Do not place live Robinhood orders from this API. Do not scrape paywalled analysis into full-text dumps; store URL + a short note. Do not add facets because last week was green. Do not promote SMC/VSA journal tags or orderflow stubs into entry confirms. Gann stays inbox-only.',
     },
   };
 }
