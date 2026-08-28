@@ -1,10 +1,7 @@
-# docker-compose.yml
-version: '3.8'
-
 services:
   db:
-    image: postgres:15
-    restart: always
+    image: postgres:18-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -12,21 +9,70 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - db_data:/var/lib/postgresql/data
+      # PG 18+ stores data under /var/lib/postgresql/<major>/docker, not .../data.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U user -d portfolio_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      DB_HOST: db
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: portfolio_db
+      DB_PORT: '5432'
+      HOST: 0.0.0.0
+      PORT: '5000'
+    ports:
+      - '5000:5000'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:5000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      - '3000:80'
+    depends_on:
+      backend:
+        condition: service_healthy
 
   pgadmin:
     image: dpage/pgadmin4:8
-    restart: always
+    restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - '8080:80'
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
 volumes:
-  db_data:
+  pgdata:
   pgadmin_data:

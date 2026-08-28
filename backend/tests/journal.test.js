@@ -39,6 +39,7 @@ describe('journal', () => {
     const listed = await store.listTrades({ limit: 10 });
     assert.equal(listed.length, 1);
     assert.equal(listed[0].symbol, 'SOFI');
+    assert.equal(listed[0].asset_class, 'stocks');
     assert.match(listed[0].reason, /OR breakout/);
   });
 

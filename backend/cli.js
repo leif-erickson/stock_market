@@ -12,6 +12,7 @@ const { createBarsClient } = require('./lib/bars');
 const { runReplay, scanLatestSession } = require('./lib/pipeline');
 const { isLiveEnabled } = require('./lib/robinhood');
 const { runDailyCli } = require('./lib/daily');
+const { runWeeklyCli } = require('./lib/weekly');
 
 dotenv.config();
 
@@ -53,6 +54,8 @@ async function main() {
   try {
     if (cmd === 'daily') {
       await runDailyCli({ store, config });
+    } else if (cmd === 'weekly') {
+      await runWeeklyCli({ store, config });
     } else if (cmd === 'replay') {
       const days = Number(process.argv[3] || 20);
       const barsClient = makeBars();
@@ -68,7 +71,7 @@ async function main() {
       const result = await runReplay({ store, barsClient, config, days, persist: true });
       printRank(result.rankings);
     } else {
-      console.error('Usage: node cli.js [replay|scan|rank|daily] [days]');
+      console.error('Usage: node cli.js [replay|scan|rank|daily|weekly] [days]');
       process.exitCode = 1;
     }
   } finally {

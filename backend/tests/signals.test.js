@@ -113,4 +113,87 @@ describe('signals', () => {
     assert.ok(hit, `expected orb_retest, got ${signals.map((s) => s.setupId).join(',') || 'none'}`);
     assert.match(hit.reason, /OR retest/i);
   });
+
+  it('fires bar_reversal on a bullish pin at VWAP', () => {
+    const prior = session({
+      date: '2024-03-01',
+      start: 10,
+      closes: Array.from({ length: 20 }, () => 10),
+      volumes: Array.from({ length: 20 }, () => 1000),
+    });
+    const today = session({
+      date: '2024-03-04',
+      start: 10,
+      closes: [10, 10.02, 10.01, 10.0, 10.04],
+      volumes: [1000, 1000, 1000, 1000, 3000],
+    });
+    today[4].open = 10.02;
+    today[4].close = 10.05;
+    today[4].high = 10.06;
+    today[4].low = 9.7;
+    const { signals } = signalsForSymbol(today, { priorSessions: [prior], config, setupIds: ['bar_reversal'] });
+    const hit = signals.find((s) => s.setupId === 'bar_reversal');
+    assert.ok(hit, `expected bar_reversal, got ${signals.map((s) => s.setupId).join(',') || 'none'}`);
+    assert.match(hit.reason, /pin/i);
+  });
+
+  it('fires impulse_hold only in expansion', () => {
+    const prior = session({
+      date: '2024-03-01',
+      start: 10,
+      closes: Array.from({ length: 20 }, () => 10),
+      volumes: Array.from({ length: 20 }, () => 1000),
+    });
+    const today = session({
+      date: '2024-03-04',
+      start: 10,
+      closes: [10, 10.05, 10.02, 10.4, 10.45],
+      volumes: [1000, 1000, 1000, 3000, 2000],
+    });
+    const quiet = signalsForSymbol(today, {
+      priorSessions: [prior],
+      config,
+      setupIds: ['impulse_hold'],
+      regime: 'quiet',
+    }).signals;
+    assert.equal(quiet.find((s) => s.setupId === 'impulse_hold'), undefined);
+    const expansion = signalsForSymbol(today, {
+      priorSessions: [prior],
+      config,
+      setupIds: ['impulse_hold'],
+      regime: 'expansion',
+    }).signals;
+    assert.ok(expansion.find((s) => s.setupId === 'impulse_hold'), 'expected impulse_hold in expansion');
+  });
+
+  it('fires roundtrip_fade only in reset and as SELL', () => {
+    const prior = session({
+      date: '2024-03-01',
+      start: 12,
+      closes: Array.from({ length: 20 }, () => 12),
+      volumes: Array.from({ length: 20 }, () => 1000),
+    });
+    const today = session({
+      date: '2024-03-04',
+      start: 12,
+      closes: [12.0, 12.4, 12.5, 12.2, 11.8],
+      volumes: [1000, 2500, 2000, 1800, 3000],
+    });
+    const quiet = signalsForSymbol(today, {
+      priorSessions: [prior],
+      config,
+      setupIds: ['roundtrip_fade'],
+      regime: 'quiet',
+    }).signals;
+    assert.equal(quiet.find((s) => s.setupId === 'roundtrip_fade'), undefined);
+    const reset = signalsForSymbol(today, {
+      priorSessions: [prior],
+      config,
+      setupIds: ['roundtrip_fade'],
+      regime: 'reset',
+    }).signals;
+    const hit = reset.find((s) => s.setupId === 'roundtrip_fade');
+    assert.ok(hit, `expected roundtrip_fade, got ${reset.map((s) => s.setupId).join(',') || 'none'}`);
+    assert.equal(hit.side, 'SELL');
+  });
 });

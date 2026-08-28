@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import PortfolioItem from './components/PortfolioItem';
+import ResearchDesk from './ResearchDesk';
 import './App.css';
 
-const API = 'http://localhost:5000';
+// Empty = same origin (CRA proxy locally, nginx in Docker). Override with REACT_APP_API_URL.
+const API = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
 
 function money(value) {
   if (value == null || Number.isNaN(Number(value))) return '—';
@@ -20,14 +22,17 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Paper Day Trading</h1>
-        <p className="sub">US equities · $100 cash model · live Robinhood is out of band and hard-off</p>
+        <h1>Winter vesting</h1>
+        <p className="sub">Alpaca paper research · $100 model · live Robinhood confirm-to-place and out of band</p>
         <nav>
           <button className={tab === 'trading' ? 'active' : ''} onClick={() => setTab('trading')}>Day trading</button>
+          <button className={tab === 'research' ? 'active' : ''} onClick={() => setTab('research')}>Research</button>
           <button className={tab === 'portfolio' ? 'active' : ''} onClick={() => setTab('portfolio')}>Portfolio</button>
         </nav>
       </header>
-      {tab === 'trading' ? <TradingDashboard /> : <PortfolioTracker />}
+      {tab === 'trading' ? <TradingDashboard /> : null}
+      {tab === 'research' ? <ResearchDesk api={API} /> : null}
+      {tab === 'portfolio' ? <PortfolioTracker /> : null}
     </div>
   );
 }
@@ -92,7 +97,7 @@ function TradingDashboard() {
     <main>
       <section className="banner">
         Live execution: <strong>{liveEnabled ? 'ON' : 'OFF'}</strong>
-        {' '}· Robinhood adapter is a stub. Grok Bot calls Robinhood MCP (review then place) only after you confirm a specific order.
+        {' '}· Robinhood adapter is a stub. Grokbot may file Slack ideas here; live MCP is confirm-to-place only.
       </section>
       {error ? <p className="error">{error}</p> : null}
 
@@ -125,6 +130,7 @@ function TradingDashboard() {
           <thead>
             <tr>
               <th>Setup</th>
+              <th>Family</th>
               <th>Status</th>
               <th>OOS trades</th>
               <th>Win rate</th>
@@ -139,11 +145,13 @@ function TradingDashboard() {
                 <tr key={s.id}>
                   <td>
                     <div>{s.name}</div>
-                    <div className="hint">{s.description}</div>
+                    <div className="hint">{(s.facets || []).join(' · ') || s.description}</div>
                   </td>
+                  <td>{s.family || '—'}</td>
                   <td>
                     <span className={s.live_eligible ? 'tag live' : 'tag paper'}>
                       {s.live_eligible ? 'live-eligible' : (s.status || 'paper')}
+                      {s.anomalyDependent ? ' · anomaly' : ''}
                     </span>
                   </td>
                   <td>{m.trades ?? '—'}</td>

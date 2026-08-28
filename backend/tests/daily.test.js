@@ -92,6 +92,7 @@ describe('daily paper PoC report', () => {
     assert.match(report, /oos_n=2/);
     assert.match(report, /liveEnabled/);
     assert.match(report, /`false`/);
+    assert.match(report, /Named edge/);
     assert.match(report, /Alpaca PAPER account/);
     assert.match(report, /buying power/);
     assert.match(report, /positions count=0/);
@@ -163,6 +164,8 @@ describe('daily runner fail-closed', () => {
     assert.ok(result.sessionDate);
     assert.equal(result.startingCash, 100);
     assert.ok(result.account.equity > 0);
+    assert.ok(result.namedEdge);
+    assert.ok(result.regime);
     assert.equal(store.kind, 'memory');
     assert.equal(result.rankings, null, 'in-memory / no DB skips walk-forward');
   });

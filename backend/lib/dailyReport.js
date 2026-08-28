@@ -31,7 +31,7 @@ function formatSignals(signals) {
       const px = Number(s.paperPrice ?? s.paper_price);
       const price = Number.isFinite(px) ? px.toFixed(2) : 'n/a';
       const why = s.reason || 'no reason';
-      return `• \`${s.symbol}\` ${setupName(s)} ${s.side} @ ${price} — ${why}`;
+      return `• \`${s.symbol}\` ${setupName(s)} ${s.side} @ ${price} [${s.assetClass || 'stocks'}] — ${why}`;
     })
     .join('\n');
 }
@@ -58,7 +58,9 @@ function formatRankings(rankings) {
   return rankings
     .map((r) => {
       const m = r.metrics || {};
-      return `• \`${r.setupId}\` status=${r.status} liveEligible=${r.liveEligible} oos_n=${m.trades ?? 0} wr=${pct(m.winRate)} pnl=${money(m.grossPnl)} cons=${pct(m.consistency)} dd=${money(m.maxDrawdown)}`;
+      const facets = (r.facets || []).join('+');
+      const flag = r.anomalyDependent ? ' anomaly_dependent' : '';
+      return `• \`${r.setupId}\` family=${r.family || 'n/a'} ${facets ? `facets=${facets} ` : ''}asset=${r.assetClass || 'stocks'} status=${r.status} liveEligible=${r.liveEligible}${flag} oos_n=${m.trades ?? 0} wr=${pct(m.winRate)} pnl=${money(m.grossPnl)} cons=${pct(m.consistency)} dd=${money(m.maxDrawdown)}`;
     })
     .join('\n');
 }
@@ -99,7 +101,9 @@ function formatDailyReport(result) {
     `• *Bar source:* \`${source}\``,
     `• *Universe:* ${universe || '_empty_'}`,
     `• *liveEnabled:* \`${liveEnabled}\``,
-    `• *Risk model:* flatten-by-close; local journal fills; Alpaca live trading off; Robinhood live off; NinjaTrader not used`,
+    `• *Named edge:* ${result.namedEdge || 'Stock auction: OR + VWAP + rvol'}`,
+    `• *Regime:* \`${result.regime || 'n/a'}\``,
+    `• *Risk model:* flatten-by-close; local journal fills; Alpaca live trading off; Robinhood live off; NinjaTrader not used; options not on $100 cash book`,
     '',
     '*Signals*',
     formatSignals(result.signals),
@@ -124,4 +128,5 @@ module.exports = {
   formatFills,
   formatRankings,
   money,
+  pct,
 };

@@ -8,16 +8,23 @@ const cors = require('cors');
 
 const { ensureSchema } = require('./lib/schema');
 const { createPgStore } = require('./lib/store');
-const { loadConfig } = require('./lib/config');
+const { loadConfig, edgeSnapshot } = require('./lib/config');
 const { createBarsClient } = require('./lib/bars');
-const { runReplay, scanLatestSession } = require('./lib/pipeline');
+const { runReplay, scanLatestSession, persistCandles } = require('./lib/pipeline');
 const { isLiveEnabled, placeOrder: robinhoodPlace } = require('./lib/robinhood');
+const { normalizeEvent, normalizeIdea } = require('./lib/research');
+const { assessGoal } = require('./lib/goals');
+const { getAgentContext } = require('./lib/agent');
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, liveEnabled: isLiveEnabled(), execution: 'paper' });
+});
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -44,6 +51,18 @@ function getStore() {
 
 function getBarsClient() {
   return createBarsClient({ alpaca });
+}
+
+function agentAuth(req, res, next) {
+  const token = process.env.AGENT_TOKEN;
+  if (!token) return next();
+  const header = req.get('authorization') || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const got = bearer || req.get('x-agent-token') || '';
+  if (got !== token) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  return next();
 }
 
 // GET all portfolio items with current values
@@ -100,14 +119,6 @@ app.delete('/portfolio/:id', async (req, res) => {
   }
 });
 
-app.get('/health', (_req, res) => {
-  res.json({
-    ok: true,
-    liveEnabled: isLiveEnabled(),
-    execution: 'paper',
-  });
-});
-
 app.get('/trading/account', async (_req, res) => {
   try {
     const account = await getStore().getAccount();
@@ -130,7 +141,19 @@ app.get('/trading/journal', async (req, res) => {
 
 app.get('/trading/setups', async (_req, res) => {
   try {
-    const setups = await getStore().listSetups();
+    const config = loadConfig();
+    const byId = new Map(config.setups.map((s) => [s.id, s]));
+    const setups = (await getStore().listSetups()).map((row) => {
+      const meta = byId.get(row.id) || {};
+      const metrics = row.metrics || {};
+      return {
+        ...row,
+        family: meta.family || null,
+        facets: meta.facets || [],
+        assetClass: meta.assetClass || 'stocks',
+        anomalyDependent: Boolean(metrics.anomalyDependent),
+      };
+    });
     res.json({ setups, liveEnabled: isLiveEnabled() });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -206,6 +229,160 @@ app.post('/trading/scan', async (_req, res) => {
   }
 });
 
+app.get('/research/edge', (_req, res) => {
+  res.json(edgeSnapshot(loadConfig()));
+});
+
+app.get('/research/goals', async (_req, res) => {
+  try {
+    const config = loadConfig();
+    const store = getStore();
+    const account = await store.getAccount();
+    const setups = await store.listSetups();
+    const oos = setups.reduce(
+      (acc, s) => {
+        const m = s.metrics || {};
+        acc.pnl += Number(m.grossPnl ?? m.gross_pnl ?? 0);
+        acc.sessions = Math.max(acc.sessions, Number(m.trades || 0));
+        return acc;
+      },
+      { pnl: 0, sessions: 0 }
+    );
+    res.json(assessGoal({
+      startingCash: Number(account.starting_cash ?? config.startingCash),
+      equity: Number(account.equity ?? config.startingCash),
+      doubleDays: config.goalDoubleDays,
+      oosPnl: oos.pnl,
+      oosSessions: oos.sessions,
+    }));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/research/events', async (req, res) => {
+  try {
+    const events = await getStore().listEvents({
+      limit: Number(req.query.limit || 50),
+      kind: req.query.kind,
+    });
+    res.json({ events });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/research/events', agentAuth, async (req, res) => {
+  try {
+    const event = normalizeEvent(req.body || {});
+    if (!event.title) return res.status(400).json({ error: 'title is required' });
+    const row = await getStore().insertEvent(event);
+    res.status(201).json(row);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/research/ideas', async (req, res) => {
+  try {
+    const ideas = await getStore().listIdeas({
+      limit: Number(req.query.limit || 50),
+      status: req.query.status,
+    });
+    res.json({ ideas });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/research/ideas', agentAuth, async (req, res) => {
+  try {
+    const idea = normalizeIdea(req.body || {});
+    if (!idea.title || !idea.hypothesis) {
+      return res.status(400).json({ error: 'title and hypothesis are required' });
+    }
+    const row = await getStore().insertIdea(idea);
+    res.status(201).json(row);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/research/ideas/:id', agentAuth, async (req, res) => {
+  try {
+    const row = await getStore().updateIdea(req.params.id, req.body || {});
+    res.json(row);
+  } catch (error) {
+    res.status(error.message.includes('not found') ? 404 : 500).json({ error: error.message });
+  }
+});
+
+app.get('/research/candles', async (req, res) => {
+  try {
+    const symbol = String(req.query.symbol || '').toUpperCase();
+    if (!symbol) return res.status(400).json({ error: 'symbol is required' });
+    const candles = await getStore().listCandles({
+      symbol,
+      timeframe: req.query.timeframe || '5m',
+      sessionDate: req.query.sessionDate,
+      limit: Number(req.query.limit || 500),
+    });
+    res.json({ symbol, candles });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/research/candles/stats', async (_req, res) => {
+  try {
+    res.json(await getStore().candleStats());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/research/candles/ingest', agentAuth, async (req, res) => {
+  try {
+    const config = loadConfig();
+    const days = Number(req.body?.days || 20);
+    const barsBySymbol = await getBarsClient().loadBars(config.universe, { days });
+    const result = await persistCandles(getStore(), barsBySymbol, `${config.barMinutes || 5}m`);
+    const stats = await getStore().candleStats();
+    res.json({
+      source: Object.values(barsBySymbol)[0]?.[0]?.synthetic ? 'synthetic' : 'alpaca',
+      ...result,
+      ...stats,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/agent/context', agentAuth, async (_req, res) => {
+  try {
+    const context = await getAgentContext(getStore(), loadConfig());
+    res.json(context);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/agent/ideas', agentAuth, async (req, res) => {
+  try {
+    const idea = normalizeIdea({ ...(req.body || {}), source: req.body?.source || 'grokbot' });
+    if (!idea.title || !idea.hypothesis) {
+      return res.status(400).json({ error: 'title and hypothesis are required' });
+    }
+    const row = await getStore().insertIdea(idea);
+    res.status(201).json({
+      idea: row,
+      next: 'Stays inbox/exploring. Replay paper against candles, then journal. Not a live order.',
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Live Robinhood path is a hard-off stub. Grok Bot may call Robinhood MCP
 // (review then place) only after the user confirms a specific order.
 app.post('/trading/live/order', async (req, res) => {
@@ -214,9 +391,26 @@ app.post('/trading/live/order', async (req, res) => {
   res.status(status).json(result);
 });
 
+async function waitForDb(db, { timeoutMs = 30_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    try {
+      await db.query('SELECT 1');
+      return;
+    } catch (err) {
+      // Wrong user/password will not recover by waiting.
+      if (err.code === '28P01' || err.code === '28000') throw err;
+      if (Date.now() >= deadline) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+}
+
 async function start(port = Number(process.env.PORT || 5000)) {
+  await waitForDb(pool);
   await ensureSchema(pool);
-  return app.listen(port, () => {
+  const host = process.env.HOST || '0.0.0.0';
+  return app.listen(port, host, () => {
     console.log(`Backend server running on port ${port}`);
   });
 }

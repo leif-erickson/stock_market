@@ -1,5 +1,7 @@
 'use strict';
 
+const { embargoDates } = require('./regime');
+
 function summarizeTrades(trades) {
   const closed = trades.filter((t) => t.status === 'closed' || t.pnl != null);
   const pnls = closed.map((t) => Number(t.pnl || 0));
@@ -23,14 +25,19 @@ function summarizeTrades(trades) {
   };
 }
 
-function walkForwardFolds(sessionDates, trainSize = 5, testSize = 2) {
+function walkForwardFolds(sessionDates, trainSize = 5, testSize = 2, { embargo = [] } = {}) {
+  const blocked = new Set(embargo);
   const folds = [];
   let i = 0;
   while (i + trainSize + testSize <= sessionDates.length) {
-    folds.push({
-      train: sessionDates.slice(i, i + trainSize),
-      test: sessionDates.slice(i + trainSize, i + trainSize + testSize),
-    });
+    const train = sessionDates.slice(i, i + trainSize);
+    const test = sessionDates.slice(i + trainSize, i + trainSize + testSize);
+    const lastTrain = train.at(-1);
+    const firstTest = test[0];
+    const adjacentToEvent = blocked.has(lastTrain) || blocked.has(firstTest);
+    if (!adjacentToEvent) {
+      folds.push({ train, test });
+    }
     i += testSize;
   }
   return folds;
@@ -40,9 +47,9 @@ function sessionOf(trade) {
   return trade.sessionDate || trade.features?.sessionDate || (trade.ts || '').slice(0, 10);
 }
 
-function rankSetup(trades, { trainSize = 5, testSize = 2 } = {}) {
+function rankSetup(trades, { trainSize = 5, testSize = 2, embargo = embargoDates() } = {}) {
   const dates = [...new Set(trades.map(sessionOf).filter(Boolean))].sort();
-  const folds = walkForwardFolds(dates, trainSize, testSize);
+  const folds = walkForwardFolds(dates, trainSize, testSize, { embargo });
   const oosTrades = [];
   const foldPnls = [];
   for (const fold of folds) {
@@ -88,7 +95,8 @@ function promotionDecision(metrics, gates) {
   };
 }
 
-async function rankAndPromote(store, { setups, gates, trades }) {
+async function rankAndPromote(store, { setups, gates, trades, variantsTried = 0, windows } = {}) {
+  const { applyValidation } = require('./validate');
   const bySetup = new Map();
   for (const setup of setups) bySetup.set(setup.id, []);
   for (const trade of trades) {
@@ -100,13 +108,26 @@ async function rankAndPromote(store, { setups, gates, trades }) {
   for (const setup of setups) {
     const setupTrades = bySetup.get(setup.id) || [];
     const metrics = rankSetup(setupTrades);
-    const decision = promotionDecision(metrics, gates);
+    const raw = promotionDecision(metrics, gates);
+    const decision = applyValidation(metrics, raw, {
+      trades: setupTrades,
+      gates,
+      variantsTried,
+      windows,
+    });
     if (store) {
-      await store.saveSetupMetrics(setup.id, metrics, decision);
+      await store.saveSetupMetrics(setup.id, {
+        ...metrics,
+        anomalyDependent: Boolean(decision.anomalyDependent),
+        promotionReason: decision.reason,
+      }, decision);
     }
     results.push({
       setupId: setup.id,
       name: setup.name,
+      family: setup.family || null,
+      facets: setup.facets || [],
+      assetClass: setup.assetClass || 'stocks',
       metrics,
       ...decision,
     });

@@ -20,6 +20,8 @@ function defaultAccountRow() {
 function createMemoryStore() {
   let tradeId = 1;
   let metricId = 1;
+  let eventId = 1;
+  let ideaId = 1;
   const state = {
     account: defaultAccountRow(),
     positions: [],
@@ -34,6 +36,9 @@ function createMemoryStore() {
       metrics: null,
     })),
     metrics: [],
+    events: [],
+    ideas: [],
+    candles: [],
   };
 
   return {
@@ -112,6 +117,7 @@ function createMemoryStore() {
         outcome: trade.outcome ?? null,
         mode: trade.mode || 'paper',
         broker_order_id: trade.brokerOrderId ?? trade.broker_order_id ?? null,
+        asset_class: trade.assetClass || trade.asset_class || 'stocks',
       };
       tradeId += 1;
       state.trades.push(row);
@@ -167,6 +173,97 @@ function createMemoryStore() {
       metricId += 1;
       state.metrics.push(row);
       return clone(row);
+    },
+    async insertEvent(event) {
+      const row = {
+        id: eventId,
+        kind: event.kind,
+        source: event.source,
+        title: event.title,
+        url: event.url || null,
+        body: event.body || '',
+        symbols: event.symbols || [],
+        tags: event.tags || [],
+        published_at: event.publishedAt || event.published_at || null,
+        created_at: new Date().toISOString(),
+      };
+      eventId += 1;
+      state.events.unshift(row);
+      return clone(row);
+    },
+    async listEvents({ limit = 50, kind } = {}) {
+      let rows = state.events.slice();
+      if (kind) rows = rows.filter((e) => e.kind === kind);
+      return clone(rows.slice(0, limit));
+    },
+    async insertIdea(idea) {
+      const row = {
+        id: ideaId,
+        title: idea.title,
+        hypothesis: idea.hypothesis,
+        source: idea.source || 'manual',
+        slack_channel: idea.slackChannel || idea.slack_channel || null,
+        slack_ts: idea.slackTs || idea.slack_ts || null,
+        status: idea.status || 'inbox',
+        symbols: idea.symbols || [],
+        setup_id: idea.setupId || idea.setup_id || null,
+        notes: idea.notes || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      ideaId += 1;
+      state.ideas.unshift(row);
+      return clone(row);
+    },
+    async listIdeas({ limit = 50, status } = {}) {
+      let rows = state.ideas.slice();
+      if (status) rows = rows.filter((i) => i.status === status);
+      return clone(rows.slice(0, limit));
+    },
+    async updateIdea(id, patch) {
+      const row = state.ideas.find((i) => i.id === Number(id));
+      if (!row) throw new Error(`idea ${id} not found`);
+      if (patch.status) row.status = patch.status;
+      if (patch.notes != null) row.notes = patch.notes;
+      if (patch.setupId || patch.setup_id) row.setup_id = patch.setupId || patch.setup_id;
+      row.updated_at = new Date().toISOString();
+      return clone(row);
+    },
+    async upsertCandles(bars) {
+      for (const bar of bars || []) {
+        const key = `${bar.symbol}|${bar.timeframe}|${bar.ts}`;
+        const idx = state.candles.findIndex(
+          (c) => `${c.symbol}|${c.timeframe}|${c.ts}` === key
+        );
+        const row = {
+          symbol: bar.symbol,
+          timeframe: bar.timeframe,
+          ts: bar.ts,
+          open: bar.open,
+          high: bar.high,
+          low: bar.low,
+          close: bar.close,
+          volume: bar.volume ?? 0,
+          session_date: bar.sessionDate || bar.session_date || null,
+          minute_of_day: bar.minuteOfDay ?? bar.minute_of_day ?? null,
+          source: bar.source || null,
+        };
+        if (idx >= 0) state.candles[idx] = row;
+        else state.candles.push(row);
+      }
+      return { upserted: (bars || []).length };
+    },
+    async listCandles({ symbol, timeframe = '5m', sessionDate, limit = 500 } = {}) {
+      let rows = state.candles.filter((c) => c.symbol === symbol && c.timeframe === timeframe);
+      if (sessionDate) {
+        rows = rows.filter((c) => String(c.session_date).slice(0, 10) === sessionDate);
+      }
+      rows.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+      return clone(rows.slice(-limit));
+    },
+    async candleStats() {
+      const symbols = [...new Set(state.candles.map((c) => c.symbol))].sort();
+      return { bars: state.candles.length, symbols };
     },
   };
 }
@@ -231,8 +328,8 @@ function createPgStore(pool) {
       const { rows } = await pool.query(
         `INSERT INTO trade_journal
           (symbol, ts, side, setup_id, features, reason, paper_price, size, notional,
-           stop_price, target_price, status, exit_ts, exit_price, pnl, outcome, mode, broker_order_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+           stop_price, target_price, status, exit_ts, exit_price, pnl, outcome, mode, broker_order_id, asset_class)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
          RETURNING *`,
         [
           trade.symbol,
@@ -253,6 +350,7 @@ function createPgStore(pool) {
           trade.outcome ?? null,
           trade.mode || 'paper',
           trade.brokerOrderId ?? trade.broker_order_id ?? null,
+          trade.assetClass || trade.asset_class || 'stocks',
         ]
       );
       return rows[0];
@@ -317,6 +415,149 @@ function createPgStore(pool) {
         ]
       );
       return rows[0];
+    },
+    async insertEvent(event) {
+      const { rows } = await pool.query(
+        `INSERT INTO research_events (kind, source, title, url, body, symbols, tags, published_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [
+          event.kind,
+          event.source,
+          event.title,
+          event.url || null,
+          event.body || '',
+          event.symbols || [],
+          event.tags || [],
+          event.publishedAt || event.published_at || null,
+        ]
+      );
+      return rows[0];
+    },
+    async listEvents({ limit = 50, kind } = {}) {
+      if (kind) {
+        const { rows } = await pool.query(
+          'SELECT * FROM research_events WHERE kind=$1 ORDER BY created_at DESC LIMIT $2',
+          [kind, limit]
+        );
+        return rows;
+      }
+      const { rows } = await pool.query(
+        'SELECT * FROM research_events ORDER BY created_at DESC LIMIT $1',
+        [limit]
+      );
+      return rows;
+    },
+    async insertIdea(idea) {
+      const { rows } = await pool.query(
+        `INSERT INTO strategy_ideas
+          (title, hypothesis, source, slack_channel, slack_ts, status, symbols, setup_id, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [
+          idea.title,
+          idea.hypothesis,
+          idea.source || 'manual',
+          idea.slackChannel || idea.slack_channel || null,
+          idea.slackTs || idea.slack_ts || null,
+          idea.status || 'inbox',
+          idea.symbols || [],
+          idea.setupId || idea.setup_id || null,
+          idea.notes || '',
+        ]
+      );
+      return rows[0];
+    },
+    async listIdeas({ limit = 50, status } = {}) {
+      if (status) {
+        const { rows } = await pool.query(
+          'SELECT * FROM strategy_ideas WHERE status=$1 ORDER BY created_at DESC LIMIT $2',
+          [status, limit]
+        );
+        return rows;
+      }
+      const { rows } = await pool.query(
+        'SELECT * FROM strategy_ideas ORDER BY created_at DESC LIMIT $1',
+        [limit]
+      );
+      return rows;
+    },
+    async updateIdea(id, patch) {
+      const { rows } = await pool.query(
+        `UPDATE strategy_ideas
+         SET status=COALESCE($2, status),
+             notes=COALESCE($3, notes),
+             setup_id=COALESCE($4, setup_id),
+             updated_at=NOW()
+         WHERE id=$1 RETURNING *`,
+        [id, patch.status || null, patch.notes != null ? patch.notes : null, patch.setupId || patch.setup_id || null]
+      );
+      if (!rows[0]) throw new Error(`idea ${id} not found`);
+      return rows[0];
+    },
+    async upsertCandles(bars) {
+      const chunkSize = 200;
+      const list = bars || [];
+      for (let i = 0; i < list.length; i += chunkSize) {
+        const chunk = list.slice(i, i + chunkSize);
+        const values = [];
+        const params = [];
+        let n = 1;
+        for (const bar of chunk) {
+          values.push(
+            `($${n++},$${n++},$${n++},$${n++},$${n++},$${n++},$${n++},$${n++},$${n++},$${n++},$${n++})`
+          );
+          params.push(
+            bar.symbol,
+            bar.timeframe,
+            bar.ts,
+            bar.open,
+            bar.high,
+            bar.low,
+            bar.close,
+            bar.volume ?? 0,
+            bar.sessionDate || bar.session_date || null,
+            bar.minuteOfDay ?? bar.minute_of_day ?? null,
+            bar.source || null
+          );
+        }
+        await pool.query(
+          `INSERT INTO candle_bars
+            (symbol, timeframe, ts, open, high, low, close, volume, session_date, minute_of_day, source)
+           VALUES ${values.join(',')}
+           ON CONFLICT (symbol, timeframe, ts) DO UPDATE SET
+             open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low,
+             close=EXCLUDED.close, volume=EXCLUDED.volume,
+             session_date=EXCLUDED.session_date, minute_of_day=EXCLUDED.minute_of_day,
+             source=EXCLUDED.source, ingested_at=NOW()`,
+          params
+        );
+      }
+      return { upserted: list.length };
+    },
+    async listCandles({ symbol, timeframe = '5m', sessionDate, limit = 500 } = {}) {
+      if (sessionDate) {
+        const { rows } = await pool.query(
+          `SELECT * FROM candle_bars
+           WHERE symbol=$1 AND timeframe=$2 AND session_date=$3
+           ORDER BY ts ASC LIMIT $4`,
+          [symbol, timeframe, sessionDate, limit]
+        );
+        return rows;
+      }
+      const { rows } = await pool.query(
+        `SELECT * FROM candle_bars
+         WHERE symbol=$1 AND timeframe=$2
+         ORDER BY ts DESC LIMIT $3`,
+        [symbol, timeframe, limit]
+      );
+      return rows.slice().reverse();
+    },
+    async candleStats() {
+      const { rows } = await pool.query(
+        `SELECT COUNT(*)::int AS bars,
+                COALESCE(array_agg(DISTINCT symbol) FILTER (WHERE symbol IS NOT NULL), ARRAY[]::text[]) AS symbols
+         FROM candle_bars`
+      );
+      return { bars: rows[0]?.bars || 0, symbols: rows[0]?.symbols || [] };
     },
   };
 }

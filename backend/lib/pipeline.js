@@ -11,6 +11,8 @@ const {
   outcomeFromPnl,
 } = require('./paper');
 const { rankAndPromote } = require('./rank');
+const { flattenBars } = require('./research');
+const { setupIdsForSymbol } = require('./config');
 
 function allSessionDates(barsBySymbol) {
   const dates = new Set();
@@ -110,7 +112,11 @@ async function simulateSession({
     const session = barsForDate(symbolBars, sessionDate);
     if (!session.length) continue;
     const prior = priorSessions(symbolBars, sessionDate, config.rvolLookbackSessions);
-    const { signals } = signalsForSymbol(session, { priorSessions: prior, config });
+    const { signals } = signalsForSymbol(session, {
+      priorSessions: prior,
+      config,
+      setupIds: setupIdsForSymbol(symbol, config.setups),
+    });
     sessionSignals.push(...signals);
   }
   sessionSignals.sort((a, b) => a.minuteOfDay - b.minuteOfDay);
@@ -144,6 +150,7 @@ async function simulateSession({
 
     const minuteSignals = sessionSignals.filter((s) => s.minuteOfDay === minute);
     for (const signal of minuteSignals) {
+      if (String(signal.side || 'BUY').toUpperCase() !== 'BUY') continue;
       const gate = allowEntry(account, config, open.length);
       if (!gate.ok) continue;
       const sized = sizePosition({
@@ -182,6 +189,7 @@ async function simulateSession({
         status: 'open',
         mode: 'paper',
         brokerOrderId: mirrored?.brokerOrderId || null,
+        assetClass: signal.assetClass || 'stocks',
       });
       open.push({
         symbol: signal.symbol,
@@ -221,8 +229,17 @@ async function simulateSession({
   return { account, sessionSignals };
 }
 
+async function persistCandles(store, barsBySymbol, timeframe = '5m') {
+  if (!store || typeof store.upsertCandles !== 'function') return null;
+  const bars = flattenBars(barsBySymbol, { timeframe });
+  if (!bars.length) return null;
+  return store.upsertCandles(bars);
+}
+
 async function runReplay({ store, barsClient, config, days = 20, persist = true, orderMirror = null }) {
   const barsBySymbol = await barsClient.loadBars(config.universe, { days });
+  const timeframe = `${config.barMinutes || 5}m`;
+  await persistCandles(store, barsBySymbol, timeframe);
   if (persist && store.resetPaper) {
     await store.resetPaper(config.startingCash);
   }
@@ -249,6 +266,8 @@ async function runReplay({ store, barsClient, config, days = 20, persist = true,
     setups: config.setups,
     gates: config.promotion,
     trades,
+    variantsTried: config.variantsTried,
+    windows: config.frozenWindows,
   });
 
   return {
@@ -266,6 +285,9 @@ async function runReplay({ store, barsClient, config, days = 20, persist = true,
 
 async function scanLatestSession({ store, barsClient, config, persist = false }) {
   const barsBySymbol = await barsClient.loadBars(config.universe, { days: 20 });
+  if (persist) {
+    await persistCandles(store, barsBySymbol, `${config.barMinutes || 5}m`);
+  }
   const dates = allSessionDates(barsBySymbol);
   const sessionDate = dates.at(-1);
   const signals = [];
@@ -277,7 +299,11 @@ async function scanLatestSession({ store, barsClient, config, persist = false })
     const symbolBars = barsBySymbol[symbol] || [];
     const session = barsForDate(symbolBars, sessionDate);
     const prior = priorSessions(symbolBars, sessionDate, config.rvolLookbackSessions);
-    const { signals: found, annotated } = signalsForSymbol(session, { priorSessions: prior, config });
+    const { signals: found, annotated } = signalsForSymbol(session, {
+      priorSessions: prior,
+      config,
+      setupIds: setupIdsForSymbol(symbol, config.setups),
+    });
     signals.push(...found);
     annotatedBySymbol[symbol] = annotated.slice(-3);
   }
@@ -299,4 +325,5 @@ module.exports = {
   simulateSession,
   allSessionDates,
   barsForDate,
+  persistCandles,
 };

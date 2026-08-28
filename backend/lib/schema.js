@@ -76,11 +76,60 @@ CREATE TABLE IF NOT EXISTS trade_journal (
   outcome VARCHAR(20),
   mode VARCHAR(16) NOT NULL DEFAULT 'paper',
   broker_order_id VARCHAR(64),
+  asset_class VARCHAR(16) NOT NULL DEFAULT 'stocks',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS trade_journal_ts_idx ON trade_journal (ts DESC);
 CREATE INDEX IF NOT EXISTS trade_journal_setup_idx ON trade_journal (setup_id);
+
+CREATE TABLE IF NOT EXISTS research_events (
+  id SERIAL PRIMARY KEY,
+  kind VARCHAR(32) NOT NULL,
+  source TEXT NOT NULL,
+  title TEXT NOT NULL,
+  url TEXT,
+  body TEXT,
+  symbols TEXT[] NOT NULL DEFAULT '{}',
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS research_events_ts_idx ON research_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS research_events_kind_idx ON research_events (kind);
+
+CREATE TABLE IF NOT EXISTS strategy_ideas (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  hypothesis TEXT NOT NULL,
+  source VARCHAR(32) NOT NULL DEFAULT 'manual',
+  slack_channel TEXT,
+  slack_ts TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'inbox',
+  symbols TEXT[] NOT NULL DEFAULT '{}',
+  setup_id VARCHAR(64),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS strategy_ideas_status_idx ON strategy_ideas (status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS candle_bars (
+  symbol VARCHAR(20) NOT NULL,
+  timeframe VARCHAR(16) NOT NULL,
+  ts TIMESTAMPTZ NOT NULL,
+  open DECIMAL NOT NULL,
+  high DECIMAL NOT NULL,
+  low DECIMAL NOT NULL,
+  close DECIMAL NOT NULL,
+  volume DECIMAL,
+  session_date DATE,
+  minute_of_day INT,
+  source VARCHAR(32),
+  ingested_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (symbol, timeframe, ts)
+);
+CREATE INDEX IF NOT EXISTS candle_bars_session_idx ON candle_bars (symbol, session_date);
 `;
 
 const { SETUPS } = require('./config');
@@ -90,6 +139,10 @@ async function ensureSchema(pool) {
   await pool.query(`
     ALTER TABLE trade_journal
       ADD COLUMN IF NOT EXISTS broker_order_id VARCHAR(64)
+  `);
+  await pool.query(`
+    ALTER TABLE trade_journal
+      ADD COLUMN IF NOT EXISTS asset_class VARCHAR(16) DEFAULT 'stocks'
   `);
   await pool.query(`
     INSERT INTO paper_account (id, starting_cash, cash, settled_cash, unsettled_cash, equity)

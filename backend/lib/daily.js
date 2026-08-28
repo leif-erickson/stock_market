@@ -7,6 +7,7 @@ const { hasAlpacaKeys, latestCompletedSessionDate, createBarsClient } = require(
 const { createAccount } = require('./paper');
 const { simulateSession, allSessionDates } = require('./pipeline');
 const { rankAndPromote, sessionOf } = require('./rank');
+const { regimeForDate } = require('./regime');
 const { formatDailyReport } = require('./dailyReport');
 const {
   assertPaperOnly,
@@ -131,8 +132,16 @@ async function runDaily({
       setups: config.setups,
       gates: config.promotion,
       trades,
+      variantsTried: config.variantsTried,
+      windows: config.frozenWindows,
     });
   }
+
+  const proxyBars = barsBySymbol.QQQ || barsBySymbol.NVDA || barsBySymbol.SOFI || [];
+  const regime = regimeForDate(sessionDate, {
+    bars: proxyBars,
+    windows: config.frozenWindows,
+  });
 
   return {
     sessionDate,
@@ -145,6 +154,8 @@ async function runDaily({
     account,
     rankings,
     liveEnabled: false,
+    namedEdge: config.namedEdge,
+    regime,
     alpacaPaperAccount,
     paperSubmitEnabled: isPaperSubmitEnabled(),
   };

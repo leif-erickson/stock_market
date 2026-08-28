@@ -44,6 +44,18 @@ describe('ranking / promotion', () => {
     }
   });
 
+  it('embargoes folds adjacent to frozen event dates', () => {
+    const sessionDates = dates(12, '2025-09-25');
+    const blocked = '2025-10-01';
+    const all = walkForwardFolds(sessionDates, 5, 2);
+    const purged = walkForwardFolds(sessionDates, 5, 2, { embargo: [blocked] });
+    assert.ok(purged.length < all.length);
+    for (const fold of purged) {
+      assert.notEqual(fold.train.at(-1), blocked);
+      assert.notEqual(fold.test[0], blocked);
+    }
+  });
+
   it('promotes only after OOS gates clear', () => {
     const days = dates(16);
     const winners = days.map((d) => trade(d, 1.5));

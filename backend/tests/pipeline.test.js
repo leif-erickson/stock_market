@@ -27,6 +27,7 @@ describe('paper pipeline', () => {
     const trades = await store.listTrades({ limit: 50 });
     assert.ok(trades[0].reason);
     assert.equal(trades[0].mode, 'paper');
+    assert.equal(trades[0].asset_class, 'stocks');
     assert.ok(result.rankings.length >= 1);
     assert.equal(result.liveEnabled, false);
     for (const row of result.rankings) {

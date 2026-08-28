@@ -1,6 +1,8 @@
 'use strict';
 
-const { rsi, sessionVwap, openingRange, relativeVolume } = require('./indicators');
+const { Session, Candle } = require('./candle');
+const { regimeForDate } = require('./regime');
+const { SETUPS } = require('./config');
 
 function isRth(bar, config) {
   return bar.minuteOfDay >= config.rthStartMinute && bar.minuteOfDay < config.rthEndMinute;
@@ -18,46 +20,27 @@ function groupBySession(bars) {
   return map;
 }
 
-function priorVolumesAtMinute(priorSessions, minuteOfDay) {
-  const vols = [];
-  for (const session of priorSessions) {
-    const match = session.find((b) => b.minuteOfDay === minuteOfDay);
-    if (match) vols.push(match.volume);
+function flattenPrior(priorSessions) {
+  const out = [];
+  for (const session of priorSessions || []) {
+    if (Array.isArray(session)) out.push(...session);
+    else if (session?.candles) out.push(...session.candles);
   }
-  return vols;
+  return out;
 }
 
-function annotateSession(sessionBars, { priorSessions = [], config }) {
-  const rth = sessionBars.filter((b) => isRth(b, config));
-  const closes = rth.map((b) => b.close);
-  const rsiSeries = rsi(closes, config.rsiPeriod);
-  const vwapSeries = sessionVwap(rth);
-  const or = openingRange(rth, config.orBars);
-  let brokeUp = false;
-  let brokeDown = false;
-
-  return rth.map((bar, i) => {
-    const rvol = relativeVolume(
-      bar.volume,
-      priorVolumesAtMinute(priorSessions, bar.minuteOfDay)
-    );
-    const orLocked = i >= config.orBars;
-    if (orLocked && bar.close > or.high) brokeUp = true;
-    if (orLocked && bar.close < or.low) brokeDown = true;
-    return {
-      ...bar,
-      rsi: rsiSeries[i],
-      vwap: vwapSeries[i],
-      orHigh: or.high,
-      orLow: or.low,
-      orMid: or.high != null && or.low != null ? (or.high + or.low) / 2 : null,
-      orLocked,
-      rvol,
-      brokeUp,
-      brokeDown,
-      index: i,
-    };
+function annotateSession(sessionBars, { priorSessions = [], config = {}, regime, assetClass = 'stocks' } = {}) {
+  const date = sessionBars[0]?.sessionDate;
+  const labeled = regime || regimeForDate(date, {
+    bars: [...flattenPrior(priorSessions), ...sessionBars],
+    windows: config.frozenWindows,
   });
+  return Session.fromBars(sessionBars, {
+    config,
+    priorSessions,
+    regime: labeled,
+    assetClass,
+  }).toAnnotated();
 }
 
 function stillTakingEntries(bar) {
@@ -115,25 +98,90 @@ function orbRetest(bar, prev) {
   };
 }
 
+function barReversal(bar, prev) {
+  if (!stillTakingEntries(bar) || !prev) return null;
+  if (bar.vwap == null || !(bar.rvol >= 1.2)) return null;
+  const candle = new Candle(bar);
+  const prevC = new Candle(prev);
+  const pin = candle.bullishPin(2) && candle.close >= bar.vwap * 0.998;
+  const engulf = candle.engulfs(prevC) && candle.isBullish() && prev.close <= (prev.vwap ?? prev.close);
+  if (!pin && !engulf) return null;
+  const stop = Math.min(bar.low, bar.vwap * 0.99);
+  return {
+    setupId: 'bar_reversal',
+    side: 'BUY',
+    reason: `Bar reversal (${pin ? 'pin' : 'engulf'}) at VWAP ${bar.vwap.toFixed(2)}, rvol ${bar.rvol.toFixed(2)}`,
+    stop,
+    target: bar.close + 1.5 * (bar.close - stop),
+  };
+}
+
+function impulseHold(bar, prev) {
+  if (bar.regime !== 'expansion') return null;
+  if (!stillTakingEntries(bar) || !prev) return null;
+  const orBreak = bar.close > bar.orHigh && prev.close <= bar.orHigh;
+  const structureBreak = Boolean(bar.structureRising && bar.swingHigh != null && bar.close > bar.swingHigh && prev.close <= bar.swingHigh);
+  if (!orBreak && !structureBreak) return null;
+  if (!(bar.close > bar.vwap)) return null;
+  if (bar.rvol < 1.2) return null;
+  return {
+    setupId: 'impulse_hold',
+    side: 'BUY',
+    reason: `Impulse hold (${orBreak ? 'OR' : 'structure'}) in expansion, above VWAP ${bar.vwap.toFixed(2)}, rvol ${bar.rvol.toFixed(2)}`,
+    stop: bar.orLow ?? bar.swingLow ?? bar.low,
+    target: bar.close + 1.5 * (bar.close - (bar.orLow ?? bar.low)),
+  };
+}
+
+function roundtripFade(bar, prev) {
+  if (bar.regime !== 'reset') return null;
+  if (!stillTakingEntries(bar) || !prev) return null;
+  if (bar.vwap == null || !(bar.rvol >= 1.1)) return null;
+  const lostVwap = prev.close >= prev.vwap && bar.close < bar.vwap;
+  const candle = new Candle(bar);
+  const engulf = candle.engulfs(new Candle(prev)) && !candle.isBullish();
+  if (!lostVwap && !engulf) return null;
+  const high = bar.swingHigh || bar.orHigh;
+  if (high != null && (high - bar.close) / high < 0.01) return null;
+  return {
+    setupId: 'roundtrip_fade',
+    side: 'SELL',
+    reason: `Round-trip fade in reset: ${lostVwap ? 'lost VWAP' : 'bear engulf'}, rvol ${bar.rvol.toFixed(2)} (cash book does not short)`,
+    stop: high,
+    target: bar.vwap,
+  };
+}
+
 const DETECTORS = {
   orb_breakout: orbBreakout,
   vwap_rsi_reversion: vwapRsiReversion,
   orb_retest: orbRetest,
+  bar_reversal: barReversal,
+  impulse_hold: impulseHold,
+  roundtrip_fade: roundtripFade,
 };
 
-function featuresFrom(bar) {
-  return {
-    rsi: bar.rsi,
-    vwap: bar.vwap,
-    rvol: bar.rvol,
-    orHigh: bar.orHigh,
-    orLow: bar.orLow,
-    orMid: bar.orMid,
+const FACET_FIELDS = {
+  orb_breakout: ['orHigh', 'vwap', 'rvol'],
+  vwap_rsi_reversion: ['vwap', 'rsi', 'rvol'],
+  orb_retest: ['orMid', 'vwap', 'rvol'],
+  bar_reversal: ['vwap', 'rvol'],
+  impulse_hold: ['orHigh', 'vwap', 'rvol', 'regime'],
+  roundtrip_fade: ['vwap', 'rvol', 'regime', 'swingHigh'],
+};
+
+function featuresFrom(bar, setupId) {
+  const out = {
     close: bar.close,
-    volume: bar.volume,
-    minuteOfDay: bar.minuteOfDay,
     sessionDate: bar.sessionDate,
+    minuteOfDay: bar.minuteOfDay,
+    regime: bar.regime || 'quiet',
+    assetClass: bar.assetClass || 'stocks',
   };
+  for (const key of FACET_FIELDS[setupId] || ['rvol', 'vwap']) {
+    out[key] = bar[key];
+  }
+  return out;
 }
 
 function evaluateSetups(annotatedBars, setupIds = Object.keys(DETECTORS)) {
@@ -160,19 +208,22 @@ function evaluateSetups(annotatedBars, setupIds = Object.keys(DETECTORS)) {
         paperPrice: bar.close,
         stop: hit.stop,
         target: hit.target,
-        features: featuresFrom(bar),
+        features: featuresFrom(bar, hit.setupId),
         reason: hit.reason,
+        assetClass: bar.assetClass || 'stocks',
+        family: (SETUPS.find((s) => s.id === hit.setupId) || {}).family || null,
       });
     }
   }
   return signals;
 }
 
-function signalsForSymbol(bars, { priorSessions = [], config, setupIds } = {}) {
-  const annotated = annotateSession(bars, { priorSessions, config });
+function signalsForSymbol(bars, { priorSessions = [], config, setupIds, regime, assetClass } = {}) {
+  const annotated = annotateSession(bars, { priorSessions, config, regime, assetClass });
+  const ids = setupIds || Object.keys(DETECTORS);
   return {
     annotated,
-    signals: evaluateSetups(annotated, setupIds),
+    signals: evaluateSetups(annotated, ids),
   };
 }
 
@@ -183,4 +234,6 @@ module.exports = {
   evaluateSetups,
   signalsForSymbol,
   DETECTORS,
+  FACET_FIELDS,
+  MAX_DETECTOR_FACETS: 5,
 };

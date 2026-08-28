@@ -9,6 +9,8 @@ This repo is a **paper-first US equities** research loop. Execution venues are s
 | Rithmic Protocol API | stub only | ES/NQ (MES/MNQ) via Python runtime in wstrat_candlemaster, **not** NinjaTrader |
 | NinjaTrader | **out** | out |
 
+Asset books (stocks / crypto / futures / options) and the named stock-auction edge: [STRATEGY.md](STRATEGY.md). Crypto and options have **no fill engine** in this repo this pass. Futures live stays on wstrat_candlemaster / Rithmic.
+
 ## Alpaca paper
 
 - Market data: IEX 5-minute RTH bars (`feed=iex`, `timeframe=5Min`) when `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` are real paper keys.
@@ -19,7 +21,7 @@ This repo is a **paper-first US equities** research loop. Execution venues are s
 
 ## Robinhood Agentic MCP
 
-Live Robinhood stays hard-off in this repo (`LIVE_SWITCH = false` in `backend/lib/robinhood.js`). No Robinhood keys belong here. After a setup is `live-eligible`, Grok Bot may call Robinhood Agentic Trading MCP (review then place) only when a human confirms a **specific** order.
+Live Robinhood stays hard-off in this repo (`LIVE_SWITCH = false` in `backend/lib/robinhood.js`). No Robinhood keys belong here. After a setup is `live-eligible`, Grokbot may call Robinhood Agentic Trading MCP (review then place) only when a human confirms a **specific** order. Slack ideas enter through `POST /agent/ideas` as hypotheses — see [GROKBOT.md](GROKBOT.md). The $100 cash model is a research budget; it may change and is likely not the live account.
 
 ## Rithmic (stub)
 
