@@ -6,7 +6,53 @@ Do not copy TIA, Tori, Brooks, or other course text into this repo. Pointers by 
 
 ## Honesty
 
-`orb_breakout` walk-forward OOS **n=2**. Status is **unmeasured**, not profitable. Do not invent P&amp;L. **Do not compute SQN** (Tharp SQN needs n≥30; cap n at 100). Promotion in this repo still requires `minOosTrades` **8** (stricter than Tharp’s 30 for SQN grading) **and** not `anomaly_dependent`. This board never marks `live-eligible`.
+Paper only. Live stays off. This board never marks `live-eligible`. **Do not invent a ranking.** Journal fills are **unmeasured**, not “most-profitable.”
+
+Verified sample: **2026-08-10 → 2026-08-28** paper replay (leif API). Frozen 2025 holdout windows are outside this sample, so anomaly share cannot be scored here.
+
+### Account
+
+Start $100 · equity $99.4725 · realized −$0.5275 · **21** closed paper trades. All fills had `features.regime=quiet`.
+
+### Candles
+
+**9332** 5m bars on `AMZN ARKK BRK.B MSFT NVDA PLTR SOFI TSLA`.
+
+**Gap:** `QQQ` is in `HIGH_BETA` (`backend/lib/config.js`) but **not** in `DEFAULT_UNIVERSE` / this candle archive. Noted; not silently added this pass (adding it would change paper scans).
+
+### OOS (`GET /trading/setups`)
+
+Setup metrics are **pooled across symbols**, not a setup×symbol OOS matrix. There is **no** `GET /trading/rankings` (404) — do not invent one.
+
+Only `orb_breakout` has an OOS path: OOS **n=2**, WR 50%, gross **+$0.637** (NVDA 2026-08-25 −$0.136 + PLTR 2026-08-26 +$0.773). Need **8** OOS trades. Status is **unmeasured**, not profitable. **Do not compute SQN** (Tharp SQN needs n≥30; cap n at 100). Promotion in this repo still requires `minOosTrades` **8** (stricter than Tharp’s 30 for SQN grading) **and** not `anomaly_dependent`.
+
+All six setups remain `paper`, `live_eligible` false.
+
+### Journal fills (not OOS)
+
+These are journal fills, **not** walk-forward OOS. Label: **unmeasured**. Rows follow catalog / universe order, not P&amp;L. Do not rank setups or symbols from this.
+
+| Setup | n | journal P&amp;L |
+|---|---|---|
+| `orb_breakout` | 7 | +$0.27 |
+| `vwap_rsi_reversion` | 1 | −$0.25 |
+| `orb_retest` | 5 | +$0.52 |
+| `bar_reversal` | 8 | −$1.07 |
+| `impulse_hold` | 0 | $0 |
+| `roundtrip_fade` | 0 | $0 (cash cannot short) |
+
+| Symbol | n | journal P&amp;L |
+|---|---|---|
+| AMZN | — | −$0.47 |
+| ARKK | — | −$0.09 |
+| BRK.B | — | −$0.18 |
+| MSFT | — | −$0.25 |
+| NVDA | — | −$0.09 |
+| PLTR | 3 | +$1.16 |
+| SOFI | — | −$0.30 |
+| TSLA | — | −$0.31 |
+
+`GET /research/board` returns `nextToExplore` (status queue: exploring → paper → inbox) plus this OOS-vs-journal honesty. `setupRanking` is null.
 
 ## Lab OS (links only)
 
@@ -56,7 +102,7 @@ Rank: **exploring**, then **paper**, then **inbox**. Never promote live-eligible
 
 1. `track=tia_gann_swing` (`specify`, exploring) — mechanical swing-chart; not Square of 9; no detector this pass.
 2. `track=tori_trendline` (`specify`, exploring) — 4H workhorse; official ToriTradez/TradeZella only; never stacked on AMT or Gann.
-3. AMT 5m auction (`run_wf`, paper) — this week’s slot. OOS n=2; skip NFP/CPI/FOMC already paper.
+3. AMT 5m auction (`run_wf`, paper) — this week’s slot. OOS **n=2** (unmeasured); skip NFP/CPI/FOMC already paper.
 4. AVGO earnings skip 2026-09-02 (`paper_forward`, inbox).
 5. Brooks 5m Always-In / H2 (`specify`, inbox) — later day-trade slot.
 6. TIA Wyckoff / Elliott / time overlay (`specify`, inbox) — pointers only.
@@ -108,6 +154,13 @@ Same TIA tree also has Wyckoff Volume Accelerator and Elliott folders. TIA Premi
 Al Brooks (later slot): [brookspriceaction.com](https://www.brookspriceaction.com/).
 
 ## News overlay
+
+Events already filed (optional skip / 5m auction skip; Gann/Tori higher-TF may still run the macro mornings):
+
+- **AVGO** 2026-09-02 after close — optional skip
+- **NFP** 2026-09-04 — 5m auction skip
+- **CPI** 2026-09-11 — 5m auction skip
+- **FOMC** 2026-09-16 — 5m auction skip
 
 - **5m auction / Brooks later:** skip NFP/CPI/FOMC mornings (auction skip already paper).
 - **Gann D/W (`tia_gann_swing`) and Tori 4H (`tori_trendline`):** may still run those days.

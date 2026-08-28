@@ -244,11 +244,107 @@ const RESEARCH_BOOKS = [
 ];
 
 const NEWS_OVERLAY = {
-  skip_nfp_cpi_fomc: '5m auction skips NFP/CPI/FOMC mornings (already paper).',
+  skip_nfp_cpi_fomc: '5m auction skips NFP 2026-09-04 / CPI 2026-09-11 / FOMC 2026-09-16 mornings (already paper).',
   may_run_event_mornings: 'Gann/Tori higher-TF books may still run NFP/CPI/FOMC days.',
-  single_name_earnings_skip: 'Single-name earnings skip (AVGO 2026-09-02 AC).',
+  single_name_earnings_skip: 'Single-name earnings skip (AVGO 2026-09-02 AC optional skip).',
   when_overlay: 'Time overlays answer when, not a 6th entry facet.',
   'n/a': 'No news overlay on this book.',
+};
+
+const FILED_EVENTS = [
+  { id: 'avgo', title: 'AVGO earnings', date: '2026-09-02', session: 'AC', overlay: 'optional_skip', symbols: ['AVGO'] },
+  { id: 'nfp', title: 'NFP', date: '2026-09-04', overlay: 'skip_5m_auction' },
+  { id: 'cpi', title: 'CPI', date: '2026-09-11', overlay: 'skip_5m_auction' },
+  { id: 'fomc', title: 'FOMC', date: '2026-09-16', overlay: 'skip_5m_auction' },
+];
+
+/**
+ * Verified Aug 10–28 2026 paper replay (leif API). Frozen facts.
+ * Do not invent a ranking from this. Journal is not OOS.
+ */
+const PAPER_SAMPLE = {
+  id: 'leif_api_2026-08-10_2026-08-28',
+  source: 'leif API paper replay',
+  verified: true,
+  window: { start: '2026-08-10', end: '2026-08-28' },
+  live: false,
+  account: {
+    startingCash: 100,
+    equity: 99.4725,
+    realizedPnl: -0.5275,
+    closedTrades: 21,
+  },
+  regime: {
+    featuresRegime: 'quiet',
+    allClosedTradesQuiet: true,
+    note: 'All closed paper trades had features.regime=quiet.',
+  },
+  candles: {
+    bars: 9332,
+    timeframe: '5m',
+    universe: ['AMZN', 'ARKK', 'BRK.B', 'MSFT', 'NVDA', 'PLTR', 'SOFI', 'TSLA'],
+  },
+  gaps: {
+    qqq: {
+      inHighBeta: true,
+      inCandleUniverse: false,
+      addedThisPass: false,
+      note: 'QQQ is in HIGH_BETA but not in DEFAULT_UNIVERSE / this candle archive. Documented gap; not silently added this pass.',
+    },
+  },
+  oos: {
+    endpoint: 'GET /trading/setups',
+    pooledAcrossSymbols: true,
+    setupBySymbolMatrix: false,
+    need: MIN_OOS_TRADES,
+    onlySetupWithOosPath: 'orb_breakout',
+    liveEligible: false,
+    allSetupsStatus: 'paper',
+    orbBreakout: {
+      n: DECLARED_ORB_OOS_N,
+      winRate: 0.5,
+      grossPnl: 0.637,
+      label: 'unmeasured',
+      legs: [
+        { symbol: 'NVDA', sessionDate: '2026-08-25', pnl: -0.136 },
+        { symbol: 'PLTR', sessionDate: '2026-08-26', pnl: 0.773 },
+      ],
+    },
+  },
+  journal: {
+    label: 'unmeasured',
+    notOos: true,
+    notMostProfitable: true,
+    note: 'Journal fills are not OOS. Unmeasured, not most-profitable. Rows follow catalog / universe order, not P&L. Do not rank setups or symbols from this.',
+    bySetup: [
+      { id: 'orb_breakout', n: 7, pnl: 0.27 },
+      { id: 'vwap_rsi_reversion', n: 1, pnl: -0.25, journalLabel: 'vwap_rsi' },
+      { id: 'orb_retest', n: 5, pnl: 0.52 },
+      { id: 'bar_reversal', n: 8, pnl: -1.07 },
+      { id: 'impulse_hold', n: 0, pnl: 0 },
+      { id: 'roundtrip_fade', n: 0, pnl: 0, note: 'cash cannot short' },
+    ],
+    bySymbol: [
+      { symbol: 'AMZN', pnl: -0.47 },
+      { symbol: 'ARKK', pnl: -0.09 },
+      { symbol: 'BRK.B', pnl: -0.18 },
+      { symbol: 'MSFT', pnl: -0.25 },
+      { symbol: 'NVDA', pnl: -0.09 },
+      { symbol: 'PLTR', n: 3, pnl: 1.16 },
+      { symbol: 'SOFI', pnl: -0.30 },
+      { symbol: 'TSLA', pnl: -0.31 },
+    ],
+  },
+  rankings: {
+    endpoint: 'GET /trading/rankings',
+    status: 404,
+    invented: false,
+    note: 'No rankings endpoint. Do not invent a ranking.',
+  },
+  frozenWindows: {
+    scored: false,
+    note: 'Frozen 2025 windows are outside this sample so anomaly share cannot be scored here.',
+  },
 };
 
 const CATALOG_IDEAS = [
@@ -285,7 +381,7 @@ const CATALOG_IDEAS = [
   {
     id: 'catalog:orb-oos-honesty',
     title: 'orb_breakout OOS n=2 — unmeasured, no SQN',
-    hypothesis: 'Do not invent profitability. Do not compute SQN. minOosTrades is 8. Walk-forward stitched OOS and not anomaly_dependent still required.',
+    hypothesis: 'Verified Aug 10–28 2026 leif API paper replay: OOS n=2 WR 50% gross +$0.637 (NVDA 8/25 −$0.136 + PLTR 8/26 +$0.773). Need 8. Journal fills are unmeasured, not OOS, not most-profitable. No GET /trading/rankings. Do not invent a ranking. Do not compute SQN.',
     status: 'paper',
     school: 'amt',
     book: 'stock_auction_5m',
@@ -478,14 +574,26 @@ function oosHonesty(setups = []) {
       id: s.id,
       oosTrades: trades,
       status: trades >= minOosTrades ? 'measured' : 'unmeasured',
+      liveEligible: false,
+      paper: true,
     };
   });
   return {
+    live: false,
+    inventedRanking: false,
+    setupBySymbolOosMatrix: false,
+    rankingsEndpoint: PAPER_SAMPLE.rankings,
     onlySetupWithOosPath: 'orb_breakout',
     orbBreakoutOosN: declaredN,
     minOosTrades,
     sqn: sqnSnapshot(declaredN),
-    note: 'orb_breakout OOS n=2. Do not invent profitability. Do not compute SQN. If OOS n<8, status is unmeasured not most profitable. Promotion still minOosTrades 8.',
+    note: 'OOS vs journal: only orb_breakout has OOS n=2 (unmeasured). Journal fills are unmeasured, not most-profitable. Do not invent a ranking. Do not compute SQN. Promotion still minOosTrades 8. Live off.',
+    sample: PAPER_SAMPLE,
+    oos: PAPER_SAMPLE.oos,
+    journal: PAPER_SAMPLE.journal,
+    gaps: PAPER_SAMPLE.gaps,
+    events: FILED_EVENTS,
+    frozenWindows: PAPER_SAMPLE.frozenWindows,
     setups: rows,
   };
 }
@@ -495,6 +603,7 @@ function boardSnapshot({ ideas = [], setups = [] } = {}) {
   return {
     liveEligibleFromBoard: false,
     execution: 'paper',
+    setupRanking: null,
     honesty,
     experimentSlot: {
       schoolBook: 'amt',
@@ -517,6 +626,7 @@ function boardSnapshot({ ideas = [], setups = [] } = {}) {
       auction5m: NEWS_OVERLAY.skip_nfp_cpi_fomc,
       higherTfSwing: NEWS_OVERLAY.may_run_event_mornings,
       earnings: NEWS_OVERLAY.single_name_earnings_skip,
+      filed: FILED_EVENTS,
     },
   };
 }
@@ -540,6 +650,8 @@ module.exports = {
   SOURCES,
   RESEARCH_BOOKS,
   NEWS_OVERLAY,
+  FILED_EVENTS,
+  PAPER_SAMPLE,
   CATALOG_IDEAS,
   mergeExploreQueue,
   oosHonesty,

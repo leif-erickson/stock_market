@@ -145,7 +145,7 @@ function edgeSnapshot(config) {
     assetBooks: cfg.assetBooks,
     frozenWindows: cfg.frozenWindows,
     weekly: 'npm run paper:weekly writes backend/reports/weekly.md — named edge, OOS, regime mix, anomaly flags, one experiment slot',
-    researchBoard: 'GET /research/board — books matrix and next-to-explore ranking. Never live-eligible from this.',
+    researchBoard: 'GET /research/board — books matrix, next-to-explore (status queue), and OOS vs journal honesty. Never a fake setup ranking. Never live-eligible from this.',
     honesty: board.honesty,
     nextToExplore: board.nextToExplore,
     experimentSlot: board.experimentSlot,

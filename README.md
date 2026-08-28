@@ -119,7 +119,7 @@ Borrowed (non-binding) ideas from [wstrat_candlemaster](https://github.com/leif-
 | POST | `/trading/scan` | Signal scan without placing |
 | POST | `/trading/live/order` | Always 403 — Robinhood stub |
 | GET | `/research/edge` | Named edge, facet budget, frozen windows, asset books, next-to-explore |
-| GET | `/research/board` | Books matrix + next-to-explore ranking (never live-eligible) |
+| GET | `/research/board` | Books matrix, next-to-explore status queue, OOS vs journal honesty (never a fake setup ranking; never live-eligible) |
 | GET | `/research/goals` | Doubling-horizon measurement (not a gate) |
 | GET/POST | `/research/events` | News / analysis / macro / indicator notes |
 | GET/POST/PATCH | `/research/ideas` | Strategy hypotheses (+ `nextToExplore`) |
@@ -148,8 +148,8 @@ backend/lib/candle.js      Candle / Session geometry (OrderflowSession stub)
 backend/lib/regime.js      frozen Oct–Nov 2025 windows, expansion/reset/quiet
 backend/lib/validate.js    holdout metrics, anomaly_dependent
 backend/lib/goals.js       doubling-horizon math (not a gate)
-backend/lib/research.js    event/idea/candle helpers + next-to-explore ranking
-backend/lib/researchBoard.js  books matrix + catalog ideas for GET /research/board
+backend/lib/research.js    event/idea/candle helpers + next-to-explore status queue
+backend/lib/researchBoard.js  books matrix, catalog ideas, verified paper-sample honesty for GET /research/board
 backend/lib/agent.js       Grokbot context snapshot
 backend/lib/indicators.js  RSI, VWAP, opening range, relative volume
 backend/lib/signals.js     setup detectors

@@ -87,6 +87,12 @@ describe('research events / ideas / candles', () => {
     assert.equal(ctx.schools.gann.status, 'swing_book');
     assert.equal(ctx.schools.tori.status, 'swing_book');
     assert.equal(ctx.liveEligibleFromBoard, false);
+    assert.equal(ctx.setupRanking, null);
+    assert.equal(ctx.honesty.journal.label, 'unmeasured');
+    assert.equal(ctx.honesty.oos.orbBreakout.n, 2);
+    assert.equal(ctx.honesty.inventedRanking, false);
+    assert.match(ctx.howToContribute.board, /OOS vs journal/);
+    assert.match(ctx.howToContribute.board, /Never a fake setup ranking/);
     assert.ok(ctx.nextToExplore.length >= 1);
     assert.equal(ctx.nextToExplore.every((i) => i.liveEligible === false), true);
     assert.match(ctx.howToContribute.board, /\/research\/board/);
