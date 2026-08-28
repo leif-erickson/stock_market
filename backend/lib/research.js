@@ -9,8 +9,9 @@ const NEXT_ACTIONS = new Set([
   'specify', 'code', 'run_is', 'run_wf', 'paper_forward', 'iterate', 'kill', 'promote_queue',
 ]);
 const SCHOOL_BOOKS = new Set(['amt', 'brooks', 'tori', 'gann', 'ict_smc', 'orderflow']);
+const TRACKS = new Set(['tori_trendline', 'tia_gann_swing']);
 
-const LEDGER_FIELDS = ['school', 'book', 'timeframe', 'instrumentFamily', 'nextAction', 'sourceUrl'];
+const LEDGER_FIELDS = ['school', 'book', 'track', 'timeframe', 'instrumentFamily', 'nextAction', 'sourceUrl'];
 
 function asTextArray(value) {
   if (Array.isArray(value)) {
@@ -44,6 +45,18 @@ function asSchoolBook(value) {
   return SCHOOL_BOOKS.has(aliased) ? aliased : null;
 }
 
+function asTrack(input = {}) {
+  const raw = optionalText(input.track);
+  if (raw) {
+    const key = raw.toLowerCase().replace(/[\s-]+/g, '_');
+    if (TRACKS.has(key)) return key;
+  }
+  const book = optionalText(input.book);
+  if (book === 'tori_trendlines') return 'tori_trendline';
+  if (book === 'gann_swing') return 'tia_gann_swing';
+  return null;
+}
+
 function normalizeEvent(input = {}) {
   const kind = String(input.kind || 'other').toLowerCase();
   return {
@@ -73,6 +86,7 @@ function normalizeIdea(input = {}) {
     notes: input.notes ? String(input.notes) : '',
     school: optionalText(input.school),
     book: optionalText(input.book),
+    track: asTrack(input),
     timeframe: optionalText(input.timeframe),
     instrumentFamily: optionalText(input.instrumentFamily || input.instrument_family),
     nextAction: normalizeNextAction(input.nextAction || input.next_action),
@@ -93,6 +107,7 @@ function toIdeaRow(idea, extras = {}) {
     notes: idea.notes || '',
     school: idea.school || null,
     book: idea.book || null,
+    track: asTrack(idea),
     timeframe: idea.timeframe || null,
     instrument_family: idea.instrumentFamily || idea.instrument_family || null,
     next_action: normalizeNextAction(idea.nextAction || idea.next_action),
@@ -120,6 +135,7 @@ function publicIdea(row = {}) {
     school: row.school || null,
     schoolBook: asSchoolBook(row.schoolBook || row.school_book || row.school),
     book: row.book || null,
+    track: asTrack(row),
     timeframe: row.timeframe || null,
     instrumentFamily: row.instrumentFamily || row.instrument_family || null,
     nextAction: normalizeNextAction(row.nextAction || row.next_action),
@@ -138,6 +154,7 @@ function ideaLedgerPatch(patch = {}) {
   if (patch.setupId || patch.setup_id) out.setup_id = patch.setupId || patch.setup_id;
   if (patch.school !== undefined) out.school = optionalText(patch.school);
   if (patch.book !== undefined) out.book = optionalText(patch.book);
+  if (patch.track !== undefined) out.track = asTrack(patch);
   if (patch.timeframe !== undefined) out.timeframe = optionalText(patch.timeframe);
   if (patch.instrumentFamily !== undefined || patch.instrument_family !== undefined) {
     out.instrument_family = optionalText(patch.instrumentFamily || patch.instrument_family);
@@ -197,12 +214,14 @@ module.exports = {
   EXPLORE_STATUSES,
   NEXT_ACTIONS,
   SCHOOL_BOOKS,
+  TRACKS,
   LEDGER_FIELDS,
   asTextArray,
   normalizeEvent,
   normalizeIdea,
   normalizeNextAction,
   asSchoolBook,
+  asTrack,
   toIdeaRow,
   publicIdea,
   ideaLedgerPatch,

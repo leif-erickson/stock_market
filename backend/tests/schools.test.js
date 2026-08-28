@@ -146,8 +146,8 @@ describe('AMT / SMC / VSA school mapping', () => {
     assert.throws(() => OrderflowSession.fromCandles(), (err) => err.code === 'NOT_IMPLEMENTED');
     const snap = schoolSnapshot(SETUPS);
     assert.match(snap.orderflow.note, /NOT_IMPLEMENTED/);
-    assert.match(snap.gann.note, /swing\/cycle book/);
-    assert.match(snap.tori.note, /swing book/);
+    assert.match(snap.gann.note, /not Square of 9/);
+    assert.match(snap.tori.note, /4H workhorse/);
     for (const setup of SETUPS) {
       assert.equal(setup.facets.includes('gann'), false, `${setup.id} must not facet gann`);
       assert.equal(setup.facets.includes('tori'), false, `${setup.id} must not facet tori`);

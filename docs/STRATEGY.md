@@ -51,15 +51,15 @@ Unmapped facets (`rsi`, `pin_or_engulf`, `extension_from_high`) stay unlabeled. 
 
 **Orderflow** (footprint / delta / DOM / CVD) stays parked. `OrderflowSession` throws `NOT_IMPLEMENTED`. Do not invent tick or L2 from 5m OHLCV. NinjaTrader stays out. Rithmic stays a stub.
 
-**Gann** is unparked as its own **D/W TIA swing/cycle book**. It is not parked forever and it is not a 6th 5m ORB facet. Source: TIA Investor / TIA Crypto — Drive pointers in [RESEARCH.md](RESEARCH.md). Geometry/time squares can come later; no detector this pass.
+**Gann** is unparked as `track=tia_gann_swing`: mechanical swing-chart trend following (**not** Square of 9). D/W TIA book. Not a 6th 5m ORB facet. Official and Drive ids: [RESEARCH.md](RESEARCH.md). No detector this pass.
 
-**Tori trendlines** (public: action line + safety line, bounce vs 2/3-touch break, typically 4h swing, trail on opposing trendline) is a separate **4h swing book**. Not stacked on 5m ORB and not stacked with Gann in the same experiment slot.
+**Tori trendlines** is `track=tori_trendline` (Victoria Duke / ToriTradez LLC). Official: [toritradez.com](https://toritradez.com/) and [TradeZella trendline-strategy](https://www.tradezella.com/strategies/trendline-strategy). 4H workhorse — do not drop below 4H. Public tape: platinum and crude (also gold). Skip Scribd PDFs and FX Replay extras. Not stacked on 5m ORB or on Gann.
 
 **Brooks** 5m Always-In / H2 is a possible later day-trade slot, not this week’s experiment.
 
-**One `school_book` per experiment slot:** `amt` | `brooks` | `tori` | `gann` | `ict_smc` | `orderflow`. Never stack. Overnight stock swing is the path: pick Gann **or** Tori, not both.
+**One `school_book` per experiment slot:** `amt` | `brooks` | `tori` | `gann` | `ict_smc` | `orderflow`. Never stack. Overnight path: pick `tia_gann_swing` **or** `tori_trendline`. A later 4H cross-method comparison is a study, never stacked confirms.
 
-Time-analysis masterclasses overlay *when*, not extra entry facets.
+TIME analysis masterclasses overlay *when*. The 18.6-year LAND cycle is a macro regime (whether books are open), not a 15m trigger.
 
 ICT/SMC and orderflow are later ES/NQ + L2 books, not the default US-cash book.
 
@@ -88,7 +88,7 @@ Doubling-horizon (`GOAL_DOUBLE_DAYS`) is a **measurement**, never a promotion ga
 
 Same economic event, different books. Do not stack QQQ + NQ + BTC as extra confirms on one stock trigger.
 
-Overnight / higher-TF swing is **Gann (D/W) or Tori (4h)** — one school_book per slot, not extra 5m facets. See [RESEARCH.md](RESEARCH.md).
+Overnight / higher-TF swing is **`tia_gann_swing` (D/W) or `tori_trendline` (4H min)** — one track per slot, not extra 5m facets. See [RESEARCH.md](RESEARCH.md).
 
 ## Weekly maintenance
 

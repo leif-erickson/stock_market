@@ -439,8 +439,8 @@ function createPgStore(pool) {
       const { rows } = await pool.query(
         `INSERT INTO strategy_ideas
           (title, hypothesis, source, slack_channel, slack_ts, status, symbols, setup_id, notes,
-           school, book, timeframe, instrument_family, next_action, source_url)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+           school, book, track, timeframe, instrument_family, next_action, source_url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
         [
           row.title,
           row.hypothesis,
@@ -453,6 +453,7 @@ function createPgStore(pool) {
           row.notes,
           row.school,
           row.book,
+          row.track,
           row.timeframe,
           row.instrument_family,
           row.next_action,
@@ -484,10 +485,11 @@ function createPgStore(pool) {
              setup_id=COALESCE($4, setup_id),
              school=COALESCE($5, school),
              book=COALESCE($6, book),
-             timeframe=COALESCE($7, timeframe),
-             instrument_family=COALESCE($8, instrument_family),
-             next_action=COALESCE($9, next_action),
-             source_url=COALESCE($10, source_url),
+             track=COALESCE($7, track),
+             timeframe=COALESCE($8, timeframe),
+             instrument_family=COALESCE($9, instrument_family),
+             next_action=COALESCE($10, next_action),
+             source_url=COALESCE($11, source_url),
              updated_at=NOW()
          WHERE id=$1 RETURNING *`,
         [
@@ -497,6 +499,7 @@ function createPgStore(pool) {
           ledger.setup_id || null,
           ledger.school !== undefined ? ledger.school : null,
           ledger.book !== undefined ? ledger.book : null,
+          ledger.track !== undefined ? ledger.track : null,
           ledger.timeframe !== undefined ? ledger.timeframe : null,
           ledger.instrument_family !== undefined ? ledger.instrument_family : null,
           ledger.next_action !== undefined ? ledger.next_action : null,

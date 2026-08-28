@@ -31,7 +31,7 @@ Discard confluence scores (e.g. TradePad 0–14). A setup still has 2–5 named 
 
 **One `school_book` per slot:** `amt` | `brooks` | `tori` | `gann` | `ict_smc` | `orderflow`. Never stack.
 
-This week: **`amt`**. Brooks is a possible later 5m day-trade slot (Always-In / H2), not this week. Tori = 4h swing. Gann = D/W TIA swing (unparked). ICT/SMC + orderflow: later ES/NQ + L2 — not the default US-cash book.
+This week: **`amt`**. Brooks is a possible later 5m day-trade slot (Always-In / H2), not this week. Tag swing experiments `track=tori_trendline` (4H, do not drop below 4H) or `track=tia_gann_swing` (D/W mechanical swing-chart, **not** Square of 9). ICT/SMC + orderflow: later ES/NQ + L2 — not the default US-cash book. A later 4H cross-method comparison is a **study**, never stacked confirms.
 
 ## Books
 
@@ -39,7 +39,7 @@ This week: **`amt`**. Brooks is a possible later 5m day-trade slot (Always-In / 
 |---|---|---|---|---|---|---|---|---|
 | `stock_auction_5m` | amt | mechanical | high_beta | 5m | alpaca_paper | paper | skip NFP/CPI/FOMC | `run_wf` |
 | `gann_swing` | gann | pattern | stocks | D/W | alpaca_paper | exploring | may run event mornings | `specify` |
-| `tori_trendlines` | tori | pattern | stocks | 4h | alpaca_paper | exploring | may run event mornings | `specify` |
+| `tori_trendlines` | tori | pattern | PL/CL/GC public tape | 4h min | alpaca_paper | exploring | may run event mornings | `specify` |
 | `brooks_5m` | brooks | pattern | stocks | 5m | alpaca_paper | inbox | skip NFP/CPI/FOMC | `specify` |
 | `ict_smc` | ict_smc | overlay | es_nq | 5m | later | inbox | n/a | `specify` |
 | `orderflow` | orderflow | parked | es_nq | tick | rithmic_stub | parked | n/a | `specify` |
@@ -48,14 +48,14 @@ This week: **`amt`**. Brooks is a possible later 5m day-trade slot (Always-In / 
 | `tia_time_overlay` | — | overlay | stocks | overlay | alpaca_paper | inbox | when, not a facet | `specify` |
 | `tia_process` | — | process | all | n/a | journal | inbox | n/a | `paper_forward` |
 
-Overnight stock swing is the **path** (pick `gann` or `tori`), not a stacked experiment. Facet budget still **2–5 per SETUP**.
+Overnight stock swing is the **path** (pick `track=tia_gann_swing` **or** `track=tori_trendline`), not a stacked experiment. Facet budget still **2–5 per SETUP**.
 
 ## Next to explore
 
 Rank: **exploring**, then **paper**, then **inbox**. Never promote live-eligible. One school_book in the experiment slot.
 
-1. Gann D/W swing book (`specify`, exploring) — unparked; no detector this pass.
-2. Tori 4h trendlines (`specify`, exploring) — not stacked on 5m ORB or on Gann.
+1. `track=tia_gann_swing` (`specify`, exploring) — mechanical swing-chart; not Square of 9; no detector this pass.
+2. `track=tori_trendline` (`specify`, exploring) — 4H workhorse; official ToriTradez/TradeZella only; never stacked on AMT or Gann.
 3. AMT 5m auction (`run_wf`, paper) — this week’s slot. OOS n=2; skip NFP/CPI/FOMC already paper.
 4. AVGO earnings skip 2026-09-02 (`paper_forward`, inbox).
 5. Brooks 5m Always-In / H2 (`specify`, inbox) — later day-trade slot.
@@ -71,7 +71,8 @@ Optional on `strategy_ideas`. `GET /research/ideas` and `GET /research/edge` als
 |---|---|
 | `school` | Experiment slot: `amt` \| `brooks` \| `tori` \| `gann` \| `ict_smc` \| `orderflow`. Other labels (wyckoff, …) are pointers, not slots. |
 | `book` | id from the matrix |
-| `timeframe` | `5m`, `4h`, `D/W`, `overlay`, `tick` |
+| `track` | Swing experiments only: `tori_trendline` \| `tia_gann_swing`. Omit on AMT/Brooks/ICT/orderflow. |
+| `timeframe` | `5m`, `4h` (Tori floor), `D/W`, `overlay`, `tick` |
 | `instrumentFamily` | `high_beta`, `stocks`, `single_name`, `es_nq`, … |
 | `nextAction` | enum: `specify`, `code`, `run_is`, `run_wf`, `paper_forward`, `iterate`, `kill`, `promote_queue` |
 | `sourceUrl` | Drive/URL pointer only |
@@ -80,15 +81,36 @@ Statuses: `inbox` → `exploring` → `paper` → `rejected` / `parked`. Ranking
 
 ## Pointers (ids/links only)
 
-- TIA Investor / TIA Crypto (Jason & Michael Pizzino). Drive folder: [1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9](https://drive.google.com/drive/folders/1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9) (Gann Swing Accelerator lessons 02-09). PDF `The-Gann-Swing-Accelerator.pdf` id [`1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T`](https://drive.google.com/file/d/1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T). Same TIA tree also has Wyckoff Volume Accelerator and Elliott folders.
-- Tori Trades trendlines (public method): action line + safety line; bounce vs 2/3-touch break; typically 4h; trail on opposing trendline.
-- Al Brooks price action (later slot): [brookspriceaction.com](https://www.brookspriceaction.com/)
-- TIA Premium Traders Guide *categories* to mirror (not text): mechanical vs pattern; R-multiples; advanced schools as separate courses; 7-step + trade log.
+### Tori Trades (Victoria Duke / ToriTradez LLC) — `track=tori_trendline`
+
+Official: [toritradez.com](https://toritradez.com/) · TradeZella [trendline-strategy](https://www.tradezella.com/strategies/trendline-strategy).
+
+4H workhorse — **do not drop below 4H**. Public tape: platinum and crude (also gold). Labels (not a course dump): bounce vs 2-touch break vs 3-touch (A+); action line + opposing safety line. Skip Scribd PDFs and FX Replay extra rules (not official).
+
+### TIA Gann swing — `track=tia_gann_swing`
+
+**Not Square of 9.** Mechanical swing-chart trend following: 1-bar / 2-bar / 3-bar; up / down / uncertain; trail under swing bottoms; 50% range midpoints; overbalancing time and price; TIME analysis masterclasses. The 18.6-year LAND cycle is a **macro regime** (whether books are even open), not a 15m trigger.
+
+Official: [tiainvestor.com/what-is-tia](https://tiainvestor.com/what-is-tia/) · [tia-gann-swing-indicator](https://indicators.tiainvestor.com/tia-gann-swing-indicator).
+
+Drive finding-aid (ids only; videos 02–09, **01 missing**):
+
+| What | id |
+|---|---|
+| Gann folder (lessons 02–09) | [1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9](https://drive.google.com/drive/folders/1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9) |
+| `The-Gann-Swing-Accelerator.pdf` | [1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T](https://drive.google.com/file/d/1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T) |
+| Next watch after 02/04/07/08: Overbalancing 2025 | [1HhVMgiHWlTJaezczhZhuaEc3POdpzDWd](https://drive.google.com/file/d/1HhVMgiHWlTJaezczhZhuaEc3POdpzDWd) |
+| TIME Analysis 2023 | [11HXvYMnL1FtVh1_rSysN2c69EeQO8p1D](https://drive.google.com/file/d/11HXvYMnL1FtVh1_rSysN2c69EeQO8p1D) |
+| TIME 2022 | [1IxWVMr9jtN9vvRB0_8TEgW6PYKgoWqDG](https://drive.google.com/file/d/1IxWVMr9jtN9vvRB0_8TEgW6PYKgoWqDG) |
+
+Same TIA tree also has Wyckoff Volume Accelerator and Elliott folders. TIA Premium Traders Guide *categories* to mirror (not text): mechanical vs pattern; R-multiples; advanced schools as separate courses; 7-step + trade log.
+
+Al Brooks (later slot): [brookspriceaction.com](https://www.brookspriceaction.com/).
 
 ## News overlay
 
 - **5m auction / Brooks later:** skip NFP/CPI/FOMC mornings (auction skip already paper).
-- **Gann D/W and Tori 4h:** may still run those days.
+- **Gann D/W (`tia_gann_swing`) and Tori 4H (`tori_trendline`):** may still run those days.
 - **All US-cash names:** single-name earnings skip (AVGO 2026-09-02 AC).
 
 Query: `GET /research/board`. Named 5m edge: [STRATEGY.md](STRATEGY.md).

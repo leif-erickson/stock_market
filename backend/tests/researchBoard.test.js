@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { rankNextToExplore, normalizeIdea, LEDGER_FIELDS, NEXT_ACTIONS, SCHOOL_BOOKS } = require('../lib/research');
+const { rankNextToExplore, normalizeIdea, LEDGER_FIELDS, NEXT_ACTIONS, SCHOOL_BOOKS, TRACKS } = require('../lib/research');
 const {
   MIN_OOS_TRADES,
   DECLARED_ORB_OOS_N,
@@ -23,7 +23,7 @@ const { createMemoryStore } = require('../lib/store');
 describe('research board / next-to-explore ledger', () => {
   it('declares optional ledger fields and ranks exploring/paper before inbox', () => {
     assert.deepEqual(LEDGER_FIELDS, [
-      'school', 'book', 'timeframe', 'instrumentFamily', 'nextAction', 'sourceUrl',
+      'school', 'book', 'track', 'timeframe', 'instrumentFamily', 'nextAction', 'sourceUrl',
     ]);
     const ranked = rankNextToExplore([
       { id: 3, title: 'inbox later', status: 'inbox', hypothesis: 'x' },
@@ -64,10 +64,12 @@ describe('research board / next-to-explore ledger', () => {
     const tori = RESEARCH_BOOKS.find((b) => b.id === 'tori_trendlines');
     const overnight = RESEARCH_BOOKS.find((b) => b.id === 'overnight_swing');
     assert.equal(gann.school, 'gann');
+    assert.equal(gann.track, 'tia_gann_swing');
     assert.equal(gann.timeframe, 'D/W');
     assert.equal(gann.status, 'exploring');
     assert.equal(gann.nextAction, 'specify');
     assert.equal(tori.school, 'tori');
+    assert.equal(tori.track, 'tori_trendline');
     assert.equal(tori.timeframe, '4h');
     assert.equal(overnight, undefined);
     assert.equal([...SCHOOL_BOOKS].join(','), 'amt,brooks,tori,gann,ict_smc,orderflow');
@@ -159,9 +161,23 @@ describe('research board / next-to-explore ledger', () => {
     assert.match(md, /ssrn.com\/abstract=2326253/);
     assert.match(md, /Never stack/);
     assert.match(md, /TradePad 0–14/);
+    assert.match(md, /toritradez.com/);
+    assert.match(md, /tradezella.com\/strategies\/trendline-strategy/);
+    assert.match(md, /tiainvestor.com\/what-is-tia/);
+    assert.match(md, /tia-gann-swing-indicator/);
+    assert.match(md, /not Square of 9/i);
+    assert.match(md, /do not drop below 4H/);
+    assert.match(md, /Scribd/);
+    assert.match(md, /1HhVMgiHWlTJaezczhZhuaEc3POdpzDWd/);
+    assert.match(md, /11HXvYMnL1FtVh1_rSysN2c69EeQO8p1D/);
+    assert.match(md, /1IxWVMr9jtN9vvRB0_8TEgW6PYKgoWqDG/);
+    assert.match(md, /track=tori_trendline/);
+    assert.match(md, /track=tia_gann_swing/);
     assert.doesNotMatch(md, /SQN = .*sqrt/i);
     assert.match(TIA_DRIVE_FOLDER, /1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9/);
     assert.equal(GANN_PDF_ID, '1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T');
     assert.doesNotMatch(md, /square of nine lesson/i);
+    assert.ok(TRACKS.has('tori_trendline'));
+    assert.ok(TRACKS.has('tia_gann_swing'));
   });
 });

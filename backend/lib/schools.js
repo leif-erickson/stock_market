@@ -51,6 +51,7 @@ const NON_ENTRY_NAMES = [
   'cscv',
   'sqn',
   'confluence',
+  'square_of_nine',
   'cvd',
   'delta',
   'footprint',
@@ -71,14 +72,14 @@ const SWING_BOOKS = {
     gateEntries: false,
     book: 'gann_swing',
     timeframe: 'D/W',
-    note: 'Unparked D/W TIA swing/cycle book. Not a 6th 5m ORB facet. No detector this pass. Never stack with another school_book in one slot.',
+    note: 'Unparked D/W TIA mechanical swing-chart (not Square of 9). Track=tia_gann_swing. Not a 6th 5m ORB facet. Never stack.',
   },
   tori: {
     status: 'swing_book',
     gateEntries: false,
     book: 'tori_trendlines',
     timeframe: '4h',
-    note: '4h trendline swing book (action + safety line). Not stacked on 5m ORB or on Gann.',
+    note: '4H workhorse (do not drop below 4H). Track=tori_trendline. Official ToriTradez/TradeZella only. Not stacked on 5m ORB or on Gann.',
   },
 };
 

@@ -118,6 +118,7 @@ describe('research events / ideas / candles', () => {
     assert.equal(row.timeframe, 'swing');
     assert.equal(row.instrument_family, 'stocks');
     assert.equal(row.next_action, 'specify');
+    assert.equal(row.track, 'tia_gann_swing');
     assert.ok(row.source_url.includes('1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9'));
     const patched = await store.updateIdea(row.id, {
       status: 'exploring',

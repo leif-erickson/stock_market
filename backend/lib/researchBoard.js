@@ -1,6 +1,6 @@
 'use strict';
 
-const { rankNextToExplore, publicIdea, NEXT_ACTIONS, SCHOOL_BOOKS } = require('./research');
+const { rankNextToExplore, publicIdea, NEXT_ACTIONS, SCHOOL_BOOKS, TRACKS } = require('./research');
 
 const MIN_OOS_TRADES = 8;
 const DECLARED_ORB_OOS_N = 2;
@@ -15,6 +15,13 @@ const SQN_CAP_N = 100;
 const TIA_DRIVE_FOLDER = 'https://drive.google.com/drive/folders/1nyq_yaY-vvcZiS5pJxHDjAlHhI7jnbf9';
 const GANN_PDF_ID = '1YFGU7ACqUb_IiR2a2rSoQe58JJu23v2T';
 const GANN_PDF_URL = `https://drive.google.com/file/d/${GANN_PDF_ID}`;
+const GANN_OVERBALANCE_2025_ID = '1HhVMgiHWlTJaezczhZhuaEc3POdpzDWd';
+const GANN_TIME_2023_ID = '11HXvYMnL1FtVh1_rSysN2c69EeQO8p1D';
+const GANN_TIME_2022_ID = '1IxWVMr9jtN9vvRB0_8TEgW6PYKgoWqDG';
+const TORI_OFFICIAL = 'https://toritradez.com/';
+const TORI_TRADEZELLA = 'https://www.tradezella.com/strategies/trendline-strategy';
+const TIA_WHAT = 'https://tiainvestor.com/what-is-tia/';
+const TIA_GANN_INDICATOR = 'https://indicators.tiainvestor.com/tia-gann-swing-indicator';
 
 const BLUEPRINTS = {
   walkForward: {
@@ -62,11 +69,19 @@ const SOURCES = {
   copyright: 'Pointers by id/link only. Do not copy TIA, Tori, Brooks, or other course text into this repo.',
   tia: {
     names: 'TIA Investor / TIA Crypto (Jason & Michael Pizzino)',
+    notSquareOfNine: true,
+    official: [TIA_WHAT, TIA_GANN_INDICATOR],
     driveFolder: TIA_DRIVE_FOLDER,
     gannPdfId: GANN_PDF_ID,
     gannPdfUrl: GANN_PDF_URL,
-    gannVideos: 'Gann Swing Accelerator lessons 02-09 in the Drive folder',
+    gannVideos: 'Gann Swing Accelerator lessons 02-09 in the Drive folder (01 missing)',
+    nextWatchAfter02040708: [
+      { label: 'Overbalancing 2025', id: GANN_OVERBALANCE_2025_ID },
+      { label: 'TIME Analysis 2023', id: GANN_TIME_2023_ID },
+      { label: 'TIME 2022', id: GANN_TIME_2022_ID },
+    ],
     alsoFolders: ['Wyckoff Volume Accelerator', 'Elliott'],
+    landCycle: '18.6-year LAND cycle is macro regime (whether books are open), not a 15m trigger',
     categoriesToMirror: [
       'mechanical vs pattern',
       'R-multiples (journal unit, not live size)',
@@ -75,10 +90,13 @@ const SOURCES = {
     ],
   },
   tori: {
-    names: 'Tori Trades trendlines (public method)',
-    publicNotes: 'action line + safety line; bounce vs 2/3-touch break; typically 4h swing; trail on opposing trendline',
+    names: 'Tori Trades (Victoria Duke / ToriTradez LLC)',
+    official: [TORI_OFFICIAL, TORI_TRADEZELLA],
+    minTimeframe: '4h',
+    publicTape: ['PL', 'CL', 'GC'],
+    publicNotes: 'bounce vs 2-touch break vs 3-touch (A+); action line + opposing safety line',
+    skip: ['Scribd PDFs', 'FX Replay extra rules'],
     driveId: null,
-    url: null,
   },
   blueprints: BLUEPRINTS,
 };
@@ -102,6 +120,7 @@ const RESEARCH_BOOKS = [
     id: 'gann_swing',
     school: 'gann',
     schoolBook: 'gann',
+    track: 'tia_gann_swing',
     kind: 'pattern',
     instrumentFamily: 'stocks',
     timeframe: 'D/W',
@@ -109,21 +128,23 @@ const RESEARCH_BOOKS = [
     status: 'exploring',
     newsOverlay: 'may_run_event_mornings',
     nextAction: 'specify',
-    note: 'D/W TIA swing/cycle book. Unparked. Not a 6th 5m ORB facet. No detector this pass.',
+    note: 'Mechanical swing-chart (1/2/3-bar). NOT Square of 9. Unparked D/W book. Not a 6th 5m facet.',
     sourceUrl: TIA_DRIVE_FOLDER,
   },
   {
     id: 'tori_trendlines',
     school: 'tori',
     schoolBook: 'tori',
+    track: 'tori_trendline',
     kind: 'pattern',
-    instrumentFamily: 'stocks',
+    instrumentFamily: 'public_tape',
     timeframe: '4h',
     venue: 'alpaca_paper',
     status: 'exploring',
     newsOverlay: 'may_run_event_mornings',
     nextAction: 'specify',
-    note: '4h swing book. Not stacked on 5m ORB or on Gann.',
+    note: '4H workhorse (do not drop below 4H). Official ToriTradez/TradeZella only. Never stacked on AMT or Gann.',
+    sourceUrl: TORI_OFFICIAL,
   },
   {
     id: 'brooks_5m',
@@ -204,7 +225,7 @@ const RESEARCH_BOOKS = [
     status: 'inbox',
     newsOverlay: 'when_overlay',
     nextAction: 'specify',
-    note: 'Time analysis overlays when, not extra entry facets.',
+    note: 'TIME masterclasses overlay when. 18.6y LAND cycle is macro regime, not a 15m trigger.',
     sourceUrl: TIA_DRIVE_FOLDER,
   },
   {
@@ -234,10 +255,11 @@ const CATALOG_IDEAS = [
   {
     id: 'catalog:gann-swing',
     title: 'Gann D/W swing as its own book',
-    hypothesis: 'Unpark Gann as a D/W TIA swing/cycle book. Not a 6th confirm on the 5m ORB auction. No detector this pass.',
+    hypothesis: 'TIA Gann is mechanical swing-chart trend following, not Square of 9. Unparked D/W book. Not a 6th confirm on the 5m ORB auction. No detector this pass.',
     status: 'exploring',
     school: 'gann',
     book: 'gann_swing',
+    track: 'tia_gann_swing',
     timeframe: 'D/W',
     instrumentFamily: 'stocks',
     nextAction: 'specify',
@@ -248,14 +270,15 @@ const CATALOG_IDEAS = [
   {
     id: 'catalog:tori-trendlines',
     title: 'Tori 4h trendlines swing book',
-    hypothesis: 'Public method: action line + safety line; bounce vs 2/3-touch break; typically 4h; trail on opposing trendline. Separate swing book. Never stack with AMT or Gann in one slot.',
+    hypothesis: 'Official ToriTradez/TradeZella only. 4H workhorse — do not drop below 4H. Public tape PL/CL/GC. Never stack with AMT or Gann. Skip Scribd and FX Replay extras.',
     status: 'exploring',
     school: 'tori',
     book: 'tori_trendlines',
+    track: 'tori_trendline',
     timeframe: '4h',
-    instrumentFamily: 'stocks',
+    instrumentFamily: 'public_tape',
     nextAction: 'specify',
-    sourceUrl: null,
+    sourceUrl: TORI_OFFICIAL,
     source: 'catalog',
     exploreRank: 2,
   },
@@ -381,6 +404,15 @@ const CATALOG_IDEAS = [
     source: 'catalog',
     exploreRank: 11,
   },
+  {
+    id: 'catalog:4h-cross-study',
+    title: 'Later 4H Tori vs Gann comparison study',
+    hypothesis: 'A study, never stacked confirms. One school_book / one track per slot.',
+    status: 'inbox',
+    nextAction: 'specify',
+    source: 'catalog',
+    exploreRank: 12,
+  },
 ];
 
 function catalogKey(idea) {
@@ -472,6 +504,7 @@ function boardSnapshot({ ideas = [], setups = [] } = {}) {
       note: 'One school_book per slot. Never stack. Brooks is not this week.',
     },
     schoolBooks: [...SCHOOL_BOOKS],
+    tracks: [...TRACKS],
     nextActions: [...NEXT_ACTIONS],
     labOs: BLUEPRINTS,
     books: RESEARCH_BOOKS.map((b) => ({
@@ -496,6 +529,13 @@ module.exports = {
   TIA_DRIVE_FOLDER,
   GANN_PDF_ID,
   GANN_PDF_URL,
+  GANN_OVERBALANCE_2025_ID,
+  GANN_TIME_2023_ID,
+  GANN_TIME_2022_ID,
+  TORI_OFFICIAL,
+  TORI_TRADEZELLA,
+  TIA_WHAT,
+  TIA_GANN_INDICATOR,
   BLUEPRINTS,
   SOURCES,
   RESEARCH_BOOKS,
