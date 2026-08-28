@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * Paper-only mapping of industrial trading schools onto the named stock-auction
- * edge. AMT labels existing facets. SMC/VSA may tag the journal for later
- * ranking. None of this is a new entry confirm. Orderflow stays parked.
+ * Paper-only mapping of industrial trading schools onto books.
+ * AMT labels existing 5m auction facets. SMC/VSA may tag the journal.
+ * Gann and Tori are swing books, not 5m facets. Orderflow stays parked.
  */
 
 const AMT_ROLES = {
@@ -35,6 +35,13 @@ const NON_ENTRY_NAMES = [
   'amt',
   'researchTags',
   'gann',
+  'tori',
+  'trendline',
+  'action_line',
+  'safety_line',
+  'wyckoff',
+  'elliott',
+  'time_square',
   'cvd',
   'delta',
   'footprint',
@@ -47,10 +54,20 @@ const PARKED = {
     gateEntries: false,
     note: 'Footprint/delta/DOM/CVD needs signed tape. OrderflowSession throws NOT_IMPLEMENTED. Do not invent tick or L2 from 5m OHLCV.',
   },
+};
+
+const SWING_BOOKS = {
   gann: {
-    status: 'inbox_only',
+    status: 'swing_book',
     gateEntries: false,
-    note: 'Gann stays inbox-only. Not a facet and not a journal tag this pass.',
+    book: 'gann_swing',
+    note: 'Unparked as its own swing/cycle book (TIA Gann Swing Accelerator). Not a 6th 5m ORB facet. No detector this pass.',
+  },
+  tori: {
+    status: 'swing_book',
+    gateEntries: false,
+    book: 'tori_trendlines',
+    note: 'Public trendline method (action + safety line). Separate swing book. Not stacked on 5m ORB. Overnight swing = Gann+Tori track.',
   },
 };
 
@@ -153,7 +170,7 @@ function schoolSnapshot(setups) {
     smc: {
       tags: [...SMC_TAGS],
       gateEntries: false,
-      note: 'Optional journal researchTags from 5m geometry for later ranking. Signals fire when these tags are absent.',
+      note: 'Optional journal researchTags from 5m geometry for later ranking. Signals fire when these tags are absent. Instrument-specific later book if ever.',
     },
     vsa: {
       tags: [...VSA_TAGS],
@@ -161,7 +178,8 @@ function schoolSnapshot(setups) {
       note: 'Optional journal researchTags (effort vs result / no-demand). Not entry facets.',
     },
     orderflow: { ...PARKED.orderflow },
-    gann: { ...PARKED.gann },
+    gann: { ...SWING_BOOKS.gann },
+    tori: { ...SWING_BOOKS.tori },
   };
 }
 
@@ -172,6 +190,7 @@ module.exports = {
   VSA_TAGS,
   NON_ENTRY_NAMES,
   PARKED,
+  SWING_BOOKS,
   amtMapForFacets,
   assertAmtIsNotAFacet,
   researchTagsFrom,

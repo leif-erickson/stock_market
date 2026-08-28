@@ -2,6 +2,7 @@
 
 const { assessGoal } = require('./goals');
 const { edgeSnapshot } = require('./config');
+const { boardSnapshot } = require('./researchBoard');
 
 /**
  * Snapshot Grokbot (or any Slack agent) can fetch while this stack is running.
@@ -35,6 +36,7 @@ async function getAgentContext(store, config) {
   });
 
   const edge = edgeSnapshot(config);
+  const board = boardSnapshot({ ideas, setups });
 
   return {
     intent: 'Explore US equity strategies on Alpaca paper. Live Robinhood is out of band and confirm-to-place only. $100 is a research budget, not necessarily the live account.',
@@ -54,14 +56,17 @@ async function getAgentContext(store, config) {
     recentTrades: trades,
     recentEvents: events,
     openIdeas: ideas.filter((i) => i.status === 'inbox' || i.status === 'exploring'),
+    nextToExplore: board.nextToExplore,
+    liveEligibleFromBoard: false,
     candles,
     howToContribute: {
       idea: 'POST /agent/ideas {title, hypothesis, source:"slack"|"grokbot", slackChannel, slackTs, symbols[]}',
       event: 'POST /research/events {kind:"news"|"analysis"|"macro"|"indicator", source, title, url, body, symbols[]}',
       candles: 'POST /research/candles/ingest  — persist latest Alpaca/synthetic 5m bars',
-      edge: 'GET /research/edge — named edge, facet budget, frozen Oct–Nov 2025 windows, asset books',
+      edge: 'GET /research/edge — named edge, facet budget, frozen Oct–Nov 2025 windows, asset books, next-to-explore',
+      board: 'GET /research/board — books matrix + next-to-explore ranking. exploring/paper first, then inbox. Never live-eligible from this.',
       weekly: edge.weekly,
-      doNot: 'Do not place live Robinhood orders from this API. Do not scrape paywalled analysis into full-text dumps; store URL + a short note. Do not add facets because last week was green. Do not promote SMC/VSA journal tags or orderflow stubs into entry confirms. Gann stays inbox-only.',
+      doNot: 'Do not place live Robinhood orders from this API. Do not scrape paywalled analysis into full-text dumps; store URL + a short note. Do not add facets because last week was green. Do not promote SMC/VSA journal tags or orderflow stubs into entry confirms. Do not stack Gann or Tori on the 5m ORB auction.',
     },
   };
 }

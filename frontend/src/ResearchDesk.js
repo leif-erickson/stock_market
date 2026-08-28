@@ -15,6 +15,7 @@ function ResearchDesk({ api }) {
   const [goals, setGoals] = useState(null);
   const [events, setEvents] = useState([]);
   const [ideas, setIdeas] = useState([]);
+  const [nextToExplore, setNextToExplore] = useState([]);
   const [candles, setCandles] = useState({ bars: 0, symbols: [] });
   const [edge, setEdge] = useState(null);
   const [error, setError] = useState('');
@@ -28,16 +29,18 @@ function ResearchDesk({ api }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [g, e, i, c, edgeRes] = await Promise.all([
+      const [g, e, i, c, edgeRes, boardRes] = await Promise.all([
         axios.get(`${api}/research/goals`),
         axios.get(`${api}/research/events?limit=20`),
         axios.get(`${api}/research/ideas?limit=20`),
         axios.get(`${api}/research/candles/stats`),
         axios.get(`${api}/research/edge`),
+        axios.get(`${api}/research/board`),
       ]);
       setGoals(g.data);
       setEvents(e.data.events || []);
       setIdeas(i.data.ideas || []);
+      setNextToExplore(boardRes.data.nextToExplore || i.data.nextToExplore || []);
       setCandles(c.data);
       setEdge(edgeRes.data);
       setError('');
@@ -102,8 +105,9 @@ function ResearchDesk({ api }) {
         <div className="hint">
           Max {edge?.maxFacets ?? 5} facets.
           AMT labels on the named edge: initial_balance (OR) · value (VWAP) · participation (rvol).
-          SMC/VSA are journal tags only; orderflow parked; Gann inbox-only.
+          SMC/VSA are journal tags only; orderflow parked; Gann/Tori are swing books, not 5m facets.
           Frozen holdouts: {(edge?.frozenWindows || []).map((w) => `${w.start}–${w.end} (${w.regime})`).join('; ') || 'Oct–Nov 2025'}.
+          Only orb_breakout has an OOS path so far — fewer than 8 OOS trades is unmeasured, not most profitable.
           One experiment slot from ideas below — do not add facets because last week was green.
         </div>
       </section>
@@ -123,6 +127,37 @@ function ResearchDesk({ api }) {
           <button onClick={ingestCandles} disabled={busy}>{busy ? 'Working…' : 'Ingest latest bars'}</button>
         </article>
       </div>
+
+      <section>
+        <h2>Next to explore</h2>
+        <p className="hint">
+          Rank: exploring, then paper, then inbox. This list never marks live-eligible.
+          {edge?.honesty?.note ? ` ${edge.honesty.note}` : ''}
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Idea</th>
+              <th>Book</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {nextToExplore.map((idea, idx) => (
+              <tr key={idea.id || idea.title}>
+                <td>{idx + 1}</td>
+                <td>
+                  <div>{idea.title}</div>
+                  <div className="hint">{idea.nextAction || idea.hypothesis}</div>
+                </td>
+                <td>{idea.book || idea.school || '—'}</td>
+                <td><span className="tag paper">{idea.status}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <section>
         <h2>Strategy ideas</h2>

@@ -2,6 +2,8 @@
 
 Paper-first US equity research. Alpaca paper is the stock book. Live Robinhood stays confirm-to-place and out of band. This is not financial advice.
 
+Research books, next-to-explore, Drive pointers: [RESEARCH.md](RESEARCH.md). `GET /research/board` is the queryable ledger.
+
 ## Named edge
 
 **Stock auction:** 15-minute opening range + VWAP as fair value + relative volume on high-beta names; flatten by close.
@@ -14,7 +16,7 @@ That is three facets. Auction Market Theory **is** those three facets (initial b
 
 ## Facet budget
 
-Every setup declares **2–5 named facets** (`maxFacets: 5` in `backend/lib/config.js`). Detectors that exceed the budget fail a unit test. Journal `features` store those names plus price/time, plus AMT labels (`features.amt`) on the same facets. Event-days (CPI / FOMC / mega-cap earnings) are an optional **skip**, not a sixth confirm. SMC/VSA `researchTags` are optional notes, not confirms.
+Every setup declares **2–5 named facets** (`maxFacets: 5` in `backend/lib/config.js`). Detectors that exceed the budget fail a unit test. Journal `features` store those names plus price/time, plus AMT labels (`features.amt`) on the same facets. Event-days (CPI / FOMC / mega-cap earnings) are an optional **skip**, not a sixth confirm. SMC/VSA `researchTags` are optional notes, not confirms. Books can be many; a setup still cannot grow past 5 facets.
 
 | Setup | Family | Facets | Where it may fire |
 |---|---|---|---|
@@ -27,9 +29,11 @@ Every setup declares **2–5 named facets** (`maxFacets: 5` in `backend/lib/conf
 
 High-beta: `SOFI, PLTR, TSLA, ARKK, NVDA, QQQ`. Slow large-cap: `MSFT, AMZN, BRK.B`.
 
+Only `orb_breakout` has a walk-forward OOS path so far. If OOS n&lt;8 (`minOosTrades`), status is **unmeasured**, not most profitable.
+
 ## Candle model
 
-`Candle` and `Session` in `backend/lib/candle.js` own geometry (range, wicks, pin, engulf) and session series (OR, VWAP, RSI, swings). Detectors stay functions. `OrderflowSession` throws `NOT_IMPLEMENTED` — no fake CVD from candle color. Gann stays inbox-only.
+`Candle` and `Session` in `backend/lib/candle.js` own geometry (range, wicks, pin, engulf) and session series (OR, VWAP, RSI, swings). Detectors stay functions. `OrderflowSession` throws `NOT_IMPLEMENTED` — no fake CVD from candle color.
 
 ## Industrial school mapping (paper labels)
 
@@ -43,11 +47,17 @@ AMT is a **label map** on the named edge, not a 4th/5th/6th confirm. `backend/li
 
 Unmapped facets (`rsi`, `pin_or_engulf`, `extension_from_high`) stay unlabeled. AMT role names are **not** entry facets.
 
-**SMC** (`liquidity_sweep`, `fvg`, `order_block`, `bos`) and **VSA** (`effort_vs_result`, `no_demand`) may appear as optional `features.researchTags` for later ranking. They are coarse 5m-OHLCV notes, not a full SMC/VSA engine, and they **do not gate entries**. A signal still fires when those tags are absent. Do not promote them into confirms because a week was green.
+**SMC** (`liquidity_sweep`, `fvg`, `order_block`, `bos`) and **VSA** (`effort_vs_result`, `no_demand`) may appear as optional `features.researchTags` for later ranking. They are coarse 5m-OHLCV notes, not a full SMC/VSA engine, and they **do not gate entries**. A signal still fires when those tags are absent. Do not promote them into confirms because a week was green. SMC/orderflow stay instrument-specific later books if ever.
 
 **Orderflow** (footprint / delta / DOM / CVD) stays parked. `OrderflowSession` throws `NOT_IMPLEMENTED`. Do not invent tick or L2 from 5m OHLCV. NinjaTrader stays out. Rithmic stays a stub.
 
-**Gann** stays inbox-only (`strategy_ideas` status `inbox` / `exploring`). Not a facet and not a journal tag this pass.
+**Gann** is unparked as its own **swing/cycle book**. It is not parked forever and it is not a 6th 5m ORB facet. Source: TIA Investor / TIA Crypto — Drive pointers in [RESEARCH.md](RESEARCH.md). Geometry/time squares can come later; no detector this pass.
+
+**Tori trendlines** (public: action line + safety line, bounce vs 2/3-touch break, typically 4h swing, trail on opposing trendline) is a separate swing book. Not stacked on 5m ORB.
+
+**Overnight swing book** is the Gann+Tori track — the path that un-parks overnight stock swing as its own book.
+
+Time-analysis masterclasses overlay *when*, not extra entry facets.
 
 ## Validation
 
@@ -74,6 +84,8 @@ Doubling-horizon (`GOAL_DOUBLE_DAYS`) is a **measurement**, never a promotion ga
 
 Same economic event, different books. Do not stack QQQ + NQ + BTC as extra confirms on one stock trigger.
 
+Overnight / higher-TF swing (Gann + Tori) is a **fifth research book on stocks**, not a fifth asset class and not extra 5m facets. See [RESEARCH.md](RESEARCH.md).
+
 ## Weekly maintenance
 
 `npm run paper:weekly` writes `backend/reports/weekly.md`:
@@ -85,13 +97,12 @@ Same economic event, different books. Do not stack QQQ + NQ + BTC as extra confi
 5. One experiment slot: newest `strategy_ideas` in `inbox` / `exploring`.
 6. Cross-asset glance (QQQ vs NQ vs BTC).
 
-Weekday `paper:daily` is the tape. Weekly is where the edge is **maintained**.
+Weekday `paper:daily` is the tape. Weekly is where the edge is **maintained**. Next-to-explore ranking lives on `GET /research/board` and does not promote live-eligible.
 
 ## Parked
 
-- Overnight stock swing book
 - Real CVD / tick / Lee-Ready (orderflow parked; no fake CVD from candle color)
-- Gann math (inbox-only)
+- Gann / Tori **detectors** (books are unparked; geometry later)
 - Promoting SMC/VSA `researchTags` into entry facets
 - Live options or futures from this repo
 - Flipping `LIVE_SWITCH`
