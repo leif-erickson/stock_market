@@ -54,12 +54,22 @@ class AlpacaData:
 
     # --- SDK request building (needs the SDK) ----------------------------
     @staticmethod
-    def _build_request(symbol: str, start: datetime, end: datetime, timeframe: object):
+    def _resolve_feed(feed: object):
+        """Coerce a feed string/enum to a DataFeed; None means server default."""
+        if feed is None:
+            return None
+        from alpaca.data.enums import DataFeed
+
+        return feed if isinstance(feed, DataFeed) else DataFeed(str(feed).lower())
+
+    @staticmethod
+    def _build_request(symbol: str, start: datetime, end: datetime, timeframe: object, feed: object = None):
         from alpaca.data.requests import StockBarsRequest
 
-        return StockBarsRequest(
-            symbol_or_symbols=symbol, timeframe=timeframe, start=start, end=end
-        )
+        kwargs = dict(symbol_or_symbols=symbol, timeframe=timeframe, start=start, end=end)
+        if feed is not None:
+            kwargs["feed"] = feed
+        return StockBarsRequest(**kwargs)
 
     def get_bars(
         self,
@@ -67,10 +77,11 @@ class AlpacaData:
         start: datetime,
         end: datetime,
         timeframe: Optional[object] = None,
+        feed: object = "iex",  # free/paper accounts use IEX; SIP needs a subscription
     ) -> list[Candle]:
         from alpaca.data.timeframe import TimeFrame
 
         tf = timeframe if timeframe is not None else TimeFrame.Minute
-        request = self._build_request(symbol, start, end, tf)
+        request = self._build_request(symbol, start, end, tf, self._resolve_feed(feed))
         barset = self._client.get_stock_bars(request)
         return self._barset_to_candles(barset, symbol, str(tf))
