@@ -43,6 +43,38 @@ describe('journal', () => {
     assert.match(listed[0].reason, /OR breakout/);
   });
 
+  it('persists AMT labels on journal features and does not require SMC/VSA tags', async () => {
+    const store = createMemoryStore();
+    const opened = await store.insertTrade({
+      symbol: 'SOFI',
+      ts: '2024-03-04T10:00:00-04:00',
+      side: 'BUY',
+      setupId: 'orb_breakout',
+      features: {
+        sessionDate: '2024-03-04',
+        rvol: 1.8,
+        vwap: 10.1,
+        orHigh: 10.2,
+        facets: ['or_break', 'above_vwap', 'rvol'],
+        amt: {
+          or_break: 'initial_balance',
+          above_vwap: 'value',
+          rvol: 'participation',
+        },
+      },
+      reason: 'OR breakout',
+      paperPrice: 10.4,
+      size: 2.4,
+      notional: 24.96,
+      status: 'open',
+      mode: 'paper',
+    });
+    assert.equal(opened.features.amt.or_break, 'initial_balance');
+    assert.equal(opened.features.researchTags, undefined);
+    assert.deepEqual(opened.features.facets, ['or_break', 'above_vwap', 'rvol']);
+    assert.equal(opened.mode, 'paper');
+  });
+
   it('stores a nullable broker_order_id without requiring it', async () => {
     const store = createMemoryStore();
     const opened = await store.insertTrade({

@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { loadConfig } = require('../lib/config');
-const { signalsForSymbol } = require('../lib/signals');
+const { signalsForSymbol, DETECTORS } = require('../lib/signals');
 
 function makeBar({ symbol = 'SOFI', sessionDate = '2024-03-04', i, open, high, low, close, volume }) {
   const minuteOfDay = 9 * 60 + 30 + i * 5;
@@ -64,6 +64,12 @@ describe('signals', () => {
     assert.equal(hit.symbol, 'SOFI');
     assert.match(hit.reason, /OR breakout/i);
     assert.ok(hit.features.rvol >= 1.2);
+    assert.deepEqual(hit.features.facets, ['or_break', 'above_vwap', 'rvol']);
+    assert.equal(hit.features.amt.or_break, 'initial_balance');
+    assert.equal(hit.features.amt.above_vwap, 'value');
+    assert.equal(hit.features.amt.rvol, 'participation');
+    assert.equal(hit.features.facets.length, 3);
+    assert.equal(Object.keys(hit.features.amt).length, 3);
   });
 
   it('fires vwap_rsi_reversion when an oversold session reclaims VWAP', () => {
@@ -195,5 +201,42 @@ describe('signals', () => {
     const hit = reset.find((s) => s.setupId === 'roundtrip_fade');
     assert.ok(hit, `expected roundtrip_fade, got ${reset.map((s) => s.setupId).join(',') || 'none'}`);
     assert.equal(hit.side, 'SELL');
+  });
+
+  it('fires the named-edge detector when SMC/VSA research tags are absent', () => {
+    const prior = session({
+      date: '2024-03-01',
+      start: 10,
+      closes: Array.from({ length: 20 }, () => 10),
+      volumes: Array.from({ length: 20 }, () => 1000),
+    });
+    const today = session({
+      date: '2024-03-04',
+      start: 10,
+      closes: [10, 10.05, 10.02, 10.4, 10.45],
+      volumes: [1000, 1000, 1000, 3000, 2000],
+    });
+    const { signals, annotated } = signalsForSymbol(today, {
+      priorSessions: [prior],
+      config,
+      setupIds: ['orb_breakout'],
+    });
+    const hit = signals.find((s) => s.setupId === 'orb_breakout');
+    assert.ok(hit);
+    const i = annotated.findIndex((b) => b.ts === hit.ts);
+    assert.ok(i > 0);
+    const bar = { ...annotated[i] };
+    const prev = { ...annotated[i - 1] };
+    delete bar.researchTags;
+    delete prev.researchTags;
+    assert.equal(bar.researchTags, undefined);
+    const absent = DETECTORS.orb_breakout(bar, prev);
+    assert.ok(absent, 'detector must fire with research tags absent');
+    assert.equal(absent.setupId, 'orb_breakout');
+    bar.researchTags = ['liquidity_sweep', 'fvg', 'order_block', 'bos', 'effort_vs_result', 'no_demand'];
+    const present = DETECTORS.orb_breakout(bar, prev);
+    assert.ok(present, 'detector must not require or reject research tags');
+    assert.equal(present.setupId, absent.setupId);
+    assert.equal(present.side, absent.side);
   });
 });

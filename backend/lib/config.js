@@ -1,10 +1,12 @@
 'use strict';
 
 const { FROZEN_ANOMALY_WINDOWS } = require('./regime');
+const { assertAmtIsNotAFacet, schoolSnapshot } = require('./schools');
+const { boardSnapshot } = require('./researchBoard');
 
 const MAX_FACETS = 5;
 
-const NAMED_EDGE = 'Stock auction: 15m opening range + VWAP fair value + relative volume on high-beta names; flatten by close. Not AI narrative, not Gann, not a 12-factor score.';
+const NAMED_EDGE = 'Stock auction: 15m opening range + VWAP fair value + relative volume on high-beta names; flatten by close. AMT labels: initial_balance / value / participation. Not AI narrative, not Gann, not a 12-factor score.';
 
 const HIGH_BETA = ['SOFI', 'PLTR', 'TSLA', 'ARKK', 'NVDA', 'QQQ'];
 const SLOW_LARGE_CAP = ['MSFT', 'AMZN', 'BRK.B'];
@@ -73,12 +75,12 @@ const ASSET_BOOKS = {
   crypto: {
     venue: 'ccxt_paper',
     live: 'never_this_repo',
-    notes: 'BTC/ETH Nasdaq-beta glance only this pass',
+    notes: 'Weekend/24h book: TIA Gann D/W on BTC/ETH, ccxt_paper. Live RH crypto never from this repo.',
   },
   futures: {
     venue: 'rithmic_stub',
     live: 'wstrat_candlemaster',
-    notes: 'NQ/ES stats later. NT out.',
+    notes: 'Globex Sunday 4:00 PM MT open. NQ/ES AMT later (nq_es_auction inbox). CL/PL Tori 4h. NT out. Fills not live.',
   },
   options: {
     venue: 'research_note',
@@ -120,10 +122,13 @@ function assertFacetBudget(setups, max = MAX_FACETS) {
       throw new Error(`setup ${s.id} must declare 2–${max} facets`);
     }
   }
+  assertAmtIsNotAFacet(setups);
 }
 
 function edgeSnapshot(config) {
   const cfg = config || loadConfig();
+  const schools = cfg.schools || schoolSnapshot(cfg.setups);
+  const board = boardSnapshot({ ideas: cfg.ideas || [], setups: cfg.setups });
   return {
     namedEdge: cfg.namedEdge,
     maxFacets: cfg.maxFacets,
@@ -132,12 +137,21 @@ function edgeSnapshot(config) {
       name: s.name,
       family: s.family || null,
       facets: s.facets || [],
+      amt: (schools.amt?.bySetup || {})[s.id] || {},
       assetClass: s.assetClass || 'stocks',
       regimes: s.regimes || null,
     })),
+    schools,
     assetBooks: cfg.assetBooks,
     frozenWindows: cfg.frozenWindows,
     weekly: 'npm run paper:weekly writes backend/reports/weekly.md — named edge, OOS, regime mix, anomaly flags, one experiment slot',
+    researchBoard: 'GET /research/board — books matrix, session clocks, next-to-explore (status queue), and OOS vs journal honesty. Never a fake setup ranking. Never live-eligible from this.',
+    honesty: board.honesty,
+    nextToExplore: board.nextToExplore,
+    experimentSlot: board.experimentSlot,
+    schoolBooks: board.schoolBooks,
+    nextActions: board.nextActions,
+    liveEligibleFromBoard: false,
   };
 }
 
@@ -165,6 +179,7 @@ function loadConfig(env = process.env) {
     setups,
     maxFacets: MAX_FACETS,
     namedEdge: NAMED_EDGE,
+    schools: schoolSnapshot(setups),
     assetBooks: ASSET_BOOKS,
     frozenWindows: FROZEN_ANOMALY_WINDOWS,
     variantsTried: Number(env.VARIANTS_TRIED || setups.length),

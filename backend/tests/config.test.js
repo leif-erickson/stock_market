@@ -11,6 +11,7 @@ const {
   ASSET_BOOKS,
 } = require('../lib/config');
 const { FACET_FIELDS, MAX_DETECTOR_FACETS } = require('../lib/signals');
+const { NON_ENTRY_NAMES } = require('../lib/schools');
 
 describe('facet budget / instrument families / books', () => {
   it('declares 2–5 named facets on every setup', () => {
@@ -23,6 +24,16 @@ describe('facet budget / instrument families / books', () => {
     }
     for (const [id, fields] of Object.entries(FACET_FIELDS)) {
       assert.ok(fields.length <= MAX_FACETS, `${id} reads ${fields.length} fields`);
+    }
+    const config = loadConfig();
+    const orb = config.setups.find((s) => s.id === 'orb_breakout');
+    assert.deepEqual(orb.facets, ['or_break', 'above_vwap', 'rvol']);
+    assert.equal(orb.facets.length, 3);
+    assert.equal(config.schools.amt.bySetup.orb_breakout.or_break, 'initial_balance');
+    for (const setup of config.setups) {
+      for (const name of NON_ENTRY_NAMES) {
+        assert.equal(setup.facets.includes(name), false, `${setup.id} must not facet ${name}`);
+      }
     }
   });
 
@@ -51,7 +62,13 @@ describe('facet budget / instrument families / books', () => {
     const config = loadConfig();
     assert.equal(config.assetBooks.stocks.venue, 'alpaca_paper');
     assert.equal(ASSET_BOOKS.futures.live, 'wstrat_candlemaster');
+    assert.equal(ASSET_BOOKS.futures.venue, 'rithmic_stub');
+    assert.match(ASSET_BOOKS.futures.notes, /Globex Sunday 4:00 PM MT/);
+    assert.match(ASSET_BOOKS.futures.notes, /nq_es_auction/);
     assert.equal(ASSET_BOOKS.options.live, 'not_on_100_cash_rh');
     assert.equal(ASSET_BOOKS.crypto.live, 'never_this_repo');
+    assert.equal(ASSET_BOOKS.crypto.venue, 'ccxt_paper');
+    assert.match(ASSET_BOOKS.crypto.notes, /Weekend\/24h/);
+    assert.match(ASSET_BOOKS.crypto.notes, /BTC\/ETH/);
   });
 });
