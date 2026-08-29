@@ -13,6 +13,7 @@ const { createBarsClient } = require('./lib/bars');
 const { runReplay, scanLatestSession, persistCandles } = require('./lib/pipeline');
 const { isLiveEnabled, placeOrder: robinhoodPlace } = require('./lib/robinhood');
 const { normalizeEvent, normalizeIdea } = require('./lib/research');
+const { boardSnapshot } = require('./lib/researchBoard');
 const { assessGoal } = require('./lib/goals');
 const { getAgentContext } = require('./lib/agent');
 
@@ -229,8 +230,27 @@ app.post('/trading/scan', async (_req, res) => {
   }
 });
 
-app.get('/research/edge', (_req, res) => {
-  res.json(edgeSnapshot(loadConfig()));
+app.get('/research/edge', async (_req, res) => {
+  try {
+    const store = getStore();
+    const ideas = store.listIdeas ? await store.listIdeas({ limit: 50 }) : [];
+    const setups = await store.listSetups();
+    const edge = edgeSnapshot({ ...loadConfig(), ideas, setups });
+    res.json(edge);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/research/board', async (_req, res) => {
+  try {
+    const store = getStore();
+    const ideas = store.listIdeas ? await store.listIdeas({ limit: 50 }) : [];
+    const setups = await store.listSetups();
+    res.json(boardSnapshot({ ideas, setups }));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/research/goals', async (_req, res) => {
@@ -289,7 +309,12 @@ app.get('/research/ideas', async (req, res) => {
       limit: Number(req.query.limit || 50),
       status: req.query.status,
     });
-    res.json({ ideas });
+    const board = boardSnapshot({ ideas, setups: await getStore().listSetups() });
+    res.json({
+      ideas,
+      nextToExplore: board.nextToExplore,
+      liveEligibleFromBoard: false,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
