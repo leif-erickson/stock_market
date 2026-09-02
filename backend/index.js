@@ -8,7 +8,7 @@ const cors = require('cors');
 
 const { ensureSchema } = require('./lib/schema');
 const { createPgStore } = require('./lib/store');
-const { loadConfig, edgeSnapshot } = require('./lib/config');
+const { loadConfig, edgeSnapshot, DEFAULT_REPLAY_DAYS } = require('./lib/config');
 const { createBarsClient } = require('./lib/bars');
 const { runReplay, scanLatestSession, persistCandles } = require('./lib/pipeline');
 const { isLiveEnabled, placeOrder: robinhoodPlace } = require('./lib/robinhood');
@@ -201,13 +201,15 @@ app.get('/trading/pnl', async (_req, res) => {
 app.post('/trading/replay', async (req, res) => {
   try {
     const config = loadConfig();
-    const days = Number(req.body?.days || 20);
+    const days = Number(req.body?.days || DEFAULT_REPLAY_DAYS);
+    const reset = req.body?.reset === true || req.body?.reset === '1';
     const result = await runReplay({
       store: getStore(),
       barsClient: getBarsClient(),
       config,
       days,
       persist: true,
+      reset,
     });
     res.json(result);
   } catch (error) {

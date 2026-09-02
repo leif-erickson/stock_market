@@ -5,11 +5,11 @@ const { Pool } = require('pg');
 const Alpaca = require('alpaca-trade-api');
 const dotenv = require('dotenv');
 
-const { loadConfig } = require('./lib/config');
+const { loadConfig, DEFAULT_REPLAY_DAYS } = require('./lib/config');
 const { ensureSchema } = require('./lib/schema');
 const { createPgStore, createMemoryStore } = require('./lib/store');
 const { createBarsClient } = require('./lib/bars');
-const { runReplay, scanLatestSession } = require('./lib/pipeline');
+const { runReplay, runRank, scanLatestSession } = require('./lib/pipeline');
 const { isLiveEnabled } = require('./lib/robinhood');
 const { runDailyCli } = require('./lib/daily');
 const { runWeeklyCli } = require('./lib/weekly');
@@ -45,8 +45,35 @@ function makeBars() {
   return createBarsClient({ alpaca });
 }
 
-async function main() {
-  const cmd = process.argv[2] || 'replay';
+function parsePaperArgs(argv = process.argv) {
+  const rest = argv.slice(3);
+  let reset = false;
+  let days;
+  for (let i = 0; i < rest.length; i += 1) {
+    const arg = rest[i];
+    if (arg === '--reset') {
+      reset = true;
+      continue;
+    }
+    if (arg === '--days' && rest[i + 1] != null) {
+      days = Number(rest[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (arg.startsWith('--days=')) {
+      days = Number(arg.slice('--days='.length));
+      continue;
+    }
+    if (/^\d+$/.test(arg)) {
+      days = Number(arg);
+    }
+  }
+  const lookback = Number.isFinite(days) && days > 0 ? days : DEFAULT_REPLAY_DAYS;
+  return { reset, days: lookback };
+}
+
+async function main(argv = process.argv) {
+  const cmd = argv[2] || 'replay';
   const config = loadConfig();
   const { store, pool } = makeStore();
   if (pool) await ensureSchema(pool);
@@ -57,21 +84,23 @@ async function main() {
     } else if (cmd === 'weekly') {
       await runWeeklyCli({ store, config });
     } else if (cmd === 'replay') {
-      const days = Number(process.argv[3] || 20);
+      const { days, reset } = parsePaperArgs(argv);
       const barsClient = makeBars();
-      const result = await runReplay({ store, barsClient, config, days, persist: true });
+      const result = await runReplay({ store, barsClient, config, days, persist: true, reset });
       printReplay(result);
     } else if (cmd === 'scan' || cmd === 'today') {
       const barsClient = makeBars();
       const result = await scanLatestSession({ store, barsClient, config, persist: false });
       printScan(result);
     } else if (cmd === 'rank') {
-      const days = Number(process.argv[3] || 20);
-      const barsClient = makeBars();
-      const result = await runReplay({ store, barsClient, config, days, persist: true });
+      const result = await runRank({ store, config });
       printRank(result.rankings);
+      console.log(`\nJournal rows=${result.trades} (rank is metrics-only; trade_journal and candle_bars were not deleted)`);
+      console.log(`Live enabled: ${isLiveEnabled()}`);
     } else {
-      console.error('Usage: node cli.js [replay|scan|rank|daily|weekly] [days]');
+      console.error('Usage: node cli.js [replay|scan|rank|daily|weekly] [days] [--reset]');
+      console.error('  replay  append/upsert journal from Alpaca history. Use --reset only to rebuild.');
+      console.error('  rank    walk-forward from existing trade_journal. Does not delete fills or bars.');
       process.exitCode = 1;
     }
   } finally {
@@ -80,7 +109,8 @@ async function main() {
 }
 
 function printReplay(result) {
-  console.log(`Paper replay (${result.source})  universe=${result.universe.join(',')}  days=${result.days}`);
+  const mode = result.reset ? 'RESET rebuild' : 'append/upsert';
+  console.log(`Paper replay (${result.source}, ${mode})  universe=${result.universe.join(',')}  sessions=${result.days} lookbackDays=${result.lookbackDays}`);
   console.log(`Signals=${result.signals}  journaled trades=${result.trades}`);
   console.log(`Account cash=${result.account.cash.toFixed(2)} settled=${result.account.settledCash.toFixed(2)} unsettled=${result.account.unsettledCash.toFixed(2)} equity=${result.account.equity.toFixed(2)}`);
   console.log(`Live enabled: ${isLiveEnabled()}`);
@@ -121,4 +151,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main };
+module.exports = { main, parsePaperArgs };
